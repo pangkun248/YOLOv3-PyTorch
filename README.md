@@ -7,6 +7,10 @@
 代码环境:
 win10 cuda10.0 cudnn7.6.1 python3.7 pytorch1.2
 
+数据文件和权重文件我把它放到百度云,需要的自取.[百度云](https://pan.baidu.com/s/1CG7zlJTAlDm-eImvQr0xTQ),提取码:fh3s
+
 测试方式:首先需要把yolov3.weight下载到本目录,然后运行detect_img.py或者detect_video.py.py(视频or摄像头检测).
+
+训练方式:运行train.py就行(前提是其中的参数得修改好).
 
 另:基本上代码中大部分代码都有注释.
