@@ -43,7 +43,9 @@ def NMS(prediction, conf_thres, nms_thres):
         # 筛选出那些目标置信度大于conf_thres的pre_box      image_pred.shape  -> [10647, 16]
         image_pred = image_pred[image_pred[:, 4] >= conf_thres]
         # 筛选出那些分类置信度大于conf_thres的pre_box
-        # image_pred = image_pred[image_pred[:, 5:].max(1)[0] >= conf_thres]
+        if image_pred.size(0) == 0:
+            continue
+        image_pred = image_pred[image_pred[:, 5:].max(1)[0] >= conf_thres]
         # 如果没有一个pre_box的置信度大于conf_thres,则跳过本张图片     # 假设image_pred.shape  -> [40, 16]
         if image_pred.size(0) == 0:
             continue

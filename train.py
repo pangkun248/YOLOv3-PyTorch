@@ -19,6 +19,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", help="Batch size", default=8)
     parser.add_argument("--gradient_accumulations", help="每隔几次更新梯度", default=2)
     parser.add_argument("--confidence", help="目标检测结果置信度阈值", default=0.5)
+    parser.add_argument("--iou_thres", help="在计算TP时,条件之一就是两个box的iou>iou_thres", default=0.5)
     parser.add_argument("--nms_thresh", help="NMS非极大值抑制阈值", default=0.4)
     parser.add_argument("--cfg", help="配置文件", default="yolov3.cfg", type=str)
     parser.add_argument("--weights", help="模型权重",
@@ -61,7 +62,7 @@ if __name__ == "__main__":
         collate_fn=train_dataset.collate_fn,
     )
 
-    # 使用NAG优化器, 不懂得可以参考https://www.sohu.com/a/149921578_610300
+    # 使用Adam优化器, 不懂得可以参考https://www.sohu.com/a/149921578_610300
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     class_metrics = [
@@ -143,11 +144,11 @@ if __name__ == "__main__":
             precision, recall, AP, f1, ap_class = evaluate(
                 model,
                 path=val_path,
-                iou_thres=0.5,
-                conf_thres=0.5,
-                nms_thres=0.5,
+                iou_thres=args.iou_thres,
+                conf_thres=args.confidence,
+                nms_thres=args.nms_thresh,
                 img_size=reso,
-                batch_size=8,
+                batch_size=args.batch_size,
             )
             # evaluation_metrics = [
             #     ("val_precision", precision.mean()),
@@ -166,5 +167,5 @@ if __name__ == "__main__":
             if AP.mean() > mAP:
                 mAP = AP.mean()
                 torch.save(model.state_dict(), 'weights\kalete\ep' + str(epoch) + '-map%.2f' % (
-                        AP.mean() * 100) + '-loss%.2f' % loss.item() + '.weights')
+                        AP.mean() * 100) + '-loss%.5f' % loss.item() + '.weights')
     torch.cuda.empty_cache()

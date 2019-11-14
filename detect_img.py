@@ -5,15 +5,11 @@ from util import *
 from datasets import *
 
 import os
-import sys
 import time
-import datetime
 import argparse
-import random
 
 import torch
 from torch.utils.data import DataLoader
-from torchvision import datasets
 
 import colorsys
 from PIL import Image, ImageFont, ImageDraw
@@ -31,34 +27,32 @@ def xywh2xyxy(x):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image_folder", type=str, default="test", help="path to dataset")
+    parser.add_argument("--image_folder", type=str, default="test", help="测试图片文件夹")
     parser.add_argument("--model_def", type=str, default=r"D:/py_pro/YOLOv3-PyTorch/yolov3.cfg",
-                        help="path to model definition file")
+                        help="yolov3网络配置文件")
     parser.add_argument("--weights_path", type=str, default="weights\kalete\ep893-map80.55-loss0.00.weights",
-                        help="path to weights file")
-    parser.add_argument("--class_path", type=str, default="data\kalete\dnf_classes.txt", help="path to class label file")
-    parser.add_argument("--conf_thres", type=float, default=0.7, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
-    parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
-    parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--img_size", type=int, default=320, help="size of each image dimension")
-    parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
+                        help="权重文件")
+    parser.add_argument("--class_path", type=str, default="data\kalete\dnf_classes.txt", help="标签文件路径")
+    parser.add_argument("--conf_thres", type=float, default=0.7, help="目标置信度")
+    parser.add_argument("--nms_thres", type=float, default=0.4, help="NMS中的iou阈值")
+    parser.add_argument("--batch_size", type=int, default=8, help="每批batch多少张图片")
+    parser.add_argument("--n_cpu", type=int, default=0, help="使用多少线程来生成数据")
+    parser.add_argument("--img_size", type=int, default=320, help="网络输入尺寸")
     opt = parser.parse_args()
     print(opt)
 
     os.makedirs("output", exist_ok=True)
 
-    # Set up model
+    # 在GPU上加载模型
     model = Darknet(opt.model_def).cuda()
 
     if opt.weights_path.endswith(".weights"):
-        # Load darknet weights
+        # 在模型上加载权重
         model.load_state_dict(torch.load(opt.weights_path))
     else:
-        # Load checkpoint weights
         print('无检测模型')
-
-    model.eval()  # Set in evaluation mode
+    # 非训练阶段需要使用eval()模式
+    model.eval()
 
     dataloader = DataLoader(
         ImageFolder(opt.image_folder, img_size=opt.img_size),
@@ -94,11 +88,9 @@ if __name__ == "__main__":
         inference_time = current_time - prev_time
         prev_time = current_time
         print("\t+ Batch %d, Inference Time: %s ms" % (batch_i, inference_time*1000/opt.batch_size))
-
-        # Save image and detections
         imgs.extend(img_paths)
         img_detections.extend(detections)
-    # Bounding-box colors
+
     for img_i, (path, detections) in enumerate(zip(imgs, img_detections)):
         img = Image.open(path)
         w,h = img.size
@@ -106,7 +98,7 @@ if __name__ == "__main__":
                                   size=np.floor(3e-2 * img.size[1] + 0.5).astype('int32'))
         thickness = (img.size[0] + img.size[1]) // 300
         if detections is not None:
-            # Rescale boxes to original image
+            # 在画图阶段需要转换一下坐标形式
             detections = xywh2xyxy(detections)
             # 先将在320*320标准下的xyxy坐标转换成max(600,800)下的坐标 再将x向或y向坐标减一下就行
             detections[:,:4] *= (max(h, w) / opt.img_size)
@@ -130,6 +122,6 @@ if __name__ == "__main__":
             img = np.array(img)[...,::-1]
         cv2.imshow('result',img)
         cv2.waitKey(300)
-        # Save generated image with detections
+        # 保存测试结果
         filename = path.split("\\")[-1].split(".")[0]
         cv2.imwrite('D:\py_pro\YOLOv3-PyTorch\output\{}.jpg'.format(filename),img)
