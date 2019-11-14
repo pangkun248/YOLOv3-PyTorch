@@ -4,24 +4,12 @@ from model import *
 from util import *
 from datasets import *
 
-a = xrange(5)
-print(a)
-exit()
-a=[1,2]
-for i in a:
-    i = 5
-    print(i)
-print(a)
-exit()
 import argparse
 import tqdm
 import torch
 from torch.utils.data import DataLoader
-a = ['aa','bb']
-for i in a:
-    i = 44
-print(a)
-exit()
+
+
 def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size):
     model.eval()
     dataset = ListDataset(path,img_size)
