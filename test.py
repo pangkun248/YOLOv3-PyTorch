@@ -46,7 +46,6 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=8, help="size of each image batch")
     parser.add_argument("--model_def", type=str, default="yolov3.cfg", help="path to model definition file")
     parser.add_argument("--weights_path", type=str, default="weights/kalete/ep893-map80.55-loss0.00.weights", help="path to weights file")
-    # parser.add_argument("--class_path", type=str, default="data/coco.names", help="path to class label file")
     parser.add_argument("--iou_thres", type=float, default=0.5, help="在计算TP时,条件之一就是两个box的iou>iou_thres")
     parser.add_argument("--conf_thres", type=float, default=0.7, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
@@ -60,17 +59,11 @@ if __name__ == "__main__":
     valid_path = r'D:\py_pro\YOLOv3-PyTorch\data\kalete\val.txt'
     class_names = r'D:\py_pro\YOLOv3-PyTorch\data\kalete\dnf_classes.txt'
     with open(class_names, 'r') as file:
-        # class_list = [i[:-2] for i in file.readlines()]
-        # class_list = [i.replace('\n','') for i in file.readlines()]
-        class_list = file.readlines()
-        for i in class_list:
-            i.replace('\n','')
-    print(class_list)
-    exit()
+        class_list = [i.replace('\n','') for i in file.readlines()]
     # Initiate model
     model = Darknet(opt.model_def).cuda()
     if opt.weights_path.endswith(".weights"):
-        # Load darknet weights
+        # 加载模型文件
         model.load_state_dict(torch.load(opt.weights_path))
     else:
         # Load checkpoint weights
