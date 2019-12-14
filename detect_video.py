@@ -31,25 +31,23 @@ def xywh2xyxy(x):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--video_in", type=str, default="D:\BaiduNetdiskDownload\kalete.avi", help="测试视频")
-    parser.add_argument("--video_out", type=str, default="kalete_out.avi", help="测试视频输出地址")
-    parser.add_argument("--model_def", type=str, default="yolov3.cfg",
+    parser.add_argument("--video_in", type=str, default="D:\BaiduNetdiskDownload\wenyi.avi", help="测试视频")
+    parser.add_argument("--video_out", type=str, default="wenyi_.avi", help="测试视频输出地址")
+    parser.add_argument("--model_def", type=str, default="yolo_cfg\yolov3-tiny.cfg",
                         help="yolov3网络配置文件")
-    parser.add_argument("--weights_path", type=str, default="weights/kalete/ep893-map80.55-loss0.00.weights",
+    parser.add_argument("--weights_path", type=str, default="weights/wenyi/tiny_ep69-map84.66-loss46.45000.weights",
                         help="权重文件")
-    parser.add_argument("--class_path", type=str, default="data/kalete/dnf_classes.txt",
+    parser.add_argument("--class_path", type=str, default="data/wenyi/dnf_classes.txt",
                         help="path to class label file")
-    parser.add_argument("--conf_thres", type=float, default=0.8, help="目标置信度")
+    parser.add_argument("--conf_thres", type=float, default=0.5, help="目标置信度")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="NMS中的iou阈值")
-    parser.add_argument("--batch_size", type=int, default=8, help="每批batch多少张图片")
-    parser.add_argument("--n_cpu", type=int, default=0, help="使用多少线程来生成数据")
     parser.add_argument("--img_size", type=int, default=320, help="网络输入尺寸")
     opt = parser.parse_args()
     print(opt)
     os.makedirs("output", exist_ok=True)
 
     # 在GPU上加载模型
-    model = Darknet(opt.model_def).cuda()
+    model = Mainnet(opt.model_def).cuda()
 
     if opt.weights_path.endswith(".weights"):
         # 在模型上加载权重
@@ -77,7 +75,6 @@ if __name__ == "__main__":
                   int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     isOutput = True if opt.video_out != "" else False
     if isOutput:
-        print("!!! TYPE:", type(opt.video_out), type(video_FourCC), type(video_fps), type(video_size))
         out = cv2.VideoWriter(opt.video_out, video_FourCC, video_fps, video_size)
     while True:
         return_value, frame = vid.read()
@@ -120,7 +117,7 @@ if __name__ == "__main__":
                 draw.rectangle([x1, y1 - label_h, x1 + label_w, y1], fill=colors[int(cls_pred)])
                 draw.text((x1, y1 - label_h), label, fill=(0, 0, 0), font=font)
             draw.text((1,1), fps, fill=colors[0], font=font)
-            cv_img = np.array(PIL_img)[..., ::-1]
+        cv_img = np.array(PIL_img)[..., ::-1]
         cv2.imshow('result', cv_img)
         # cv2.waitKey(300)
         out.write(cv_img)

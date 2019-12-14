@@ -1,11 +1,7 @@
 from __future__ import division
 
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
 from util import *
-
 
 def parse_cfg(cfgfile):
     # 加载文件并过滤掉文本中多余内容
@@ -34,7 +30,6 @@ def parse_cfg(cfgfile):
     blocks.append(block)  # 退出循环，将最后一个未加入的block加进去
     return blocks
 
-
 def create_modules(blocks):
     # blocks[0] [net]层 相当于超参数,网络全局配置的相关参数
     net_info = blocks[0]
@@ -46,7 +41,7 @@ def create_modules(blocks):
         module = nn.Sequential()
 
         # 卷积层
-        if (x["type"] == "convolutional"):
+        if (x["type"] == "conv"):
             activation = x["activation"]
             try:
                 batch_normalize = int(x["batch_normalize"])
@@ -56,15 +51,10 @@ def create_modules(blocks):
                 bias = True
 
             filters = int(x["filters"])
-            padding = int(x["pad"])
             kernel_size = int(x["size"])
             stride = int(x["stride"])
-
-            if padding:
-                pad = (kernel_size - 1) // 2
-            else:
-                pad = 0
-
+            # 其实有这一步即使cfg文件中没有pad这个属性也不影响卷积操作,所以我把cfg中的pad属性删了
+            pad = (kernel_size - 1) // 2
             conv = nn.Conv2d(prev_filters, filters, kernel_size, stride, pad, bias=bias)
             module.add_module("conv_{0}".format(index), conv)
 
@@ -77,7 +67,51 @@ def create_modules(blocks):
             if activation == "leaky":
                 activn = nn.LeakyReLU(0.1, inplace=True)
                 module.add_module("leaky_{0}".format(index), activn)
+        elif (x["type"] == "conv_dw"):
+            filters = int(x["filters"])
+            stride = int(x["stride"])
+            # 深度卷积层
+            conv_dw = nn.Conv2d(prev_filters, prev_filters, 3, stride, 1,groups= prev_filters, bias=False)
+            module.add_module("conv-dw_{0}".format(index), conv_dw)
+            # BN层
+            conv_dw_bn = nn.BatchNorm2d(prev_filters)
+            module.add_module("dw_bn_{0}".format(index), conv_dw_bn)
+            # leaky_relu层
+            activn = nn.LeakyReLU(0.1, inplace=True)
+            module.add_module("dw_leaky_{0}".format(index), activn)
+            # 逐点卷积层
+            conv_pw = nn.Conv2d(prev_filters, filters, 1, 1, 0, bias=False)
+            module.add_module("conv-pw_{0}".format(index), conv_pw)
+            conv_pw_bn = nn.BatchNorm2d(filters)
+            module.add_module("pw_bn_{0}".format(index), conv_pw_bn)
+            activn = nn.LeakyReLU(0.1, inplace=True)
+            module.add_module("pw_leaky_{0}".format(index), activn)
+        elif (x["type"] == "bottleneck"):
+            expand = int(x["expand"])
+            filters = int(x["filters"])
+            stride = int(x["stride"])
+            # 为创建bottleneck层做准备
+            pw1 = nn.Conv2d(prev_filters,filters*expand,kernel_size=1,bias=False)
+            bn1 = nn.BatchNorm2d(filters*expand)
+            dw = nn.Conv2d(filters*expand,filters*expand,kernel_size=3,stride=stride,padding=1,groups=filters*expand,bias=False)
+            bn2 = nn.BatchNorm2d(filters*expand)
+            pw2 = nn.Conv2d(filters*expand,filters,kernel_size=1,bias=False)
+            bn3 = nn.BatchNorm2d(filters)
+            leaky_relu = nn.LeakyReLU(0.1,inplace=True)
 
+            # bottleneck层中的升维卷积
+            module.add_module("bottleneck_pw1_{0}".format(index), pw1)
+            module.add_module("bottleneck_bn1_{0}".format(index), bn1)
+            module.add_module("bottleneck_leaky_relu_{0}".format(index), leaky_relu)
+
+            # bottleneck层中的分组卷积
+            module.add_module("bottleneck_dw_{0}".format(index), dw)
+            module.add_module("bottleneck_bn2_{0}".format(index), bn2)
+            module.add_module("bottleneck_leaky_relu_{0}".format(index), leaky_relu)
+
+            # bottleneck层中的降维卷积
+            module.add_module("bottleneck_pw2_{0}".format(index), pw2)
+            module.add_module("bottleneck_bn3_{0}".format(index), bn3)
         # 上采样层
         elif (x["type"] == "upsample"):
             stride = int(x["stride"])
@@ -86,33 +120,26 @@ def create_modules(blocks):
             # 然后将上采样添加到小模型中去
             module.add_module("upsample_{}".format(index), upsample)
 
-        # route层就是一个路由层
+        elif (x["type"] == "max"):
+            size = int(x["stride"])
+            stride = int(x["stride"])
+            maxpool = nn.MaxPool2d(size,stride)
+            module.add_module("maxpool_{}".format(index), maxpool)
+
+        # route层 直译过来是路由层,但是我觉得翻译成"融合层"比较合适(或者叠加层？)
         elif (x["type"] == "route"):
             # 将当前layers层转换成list形式
             x["layers"] = x["layers"].split(',')
-            # 将当前layers层中的数字转成整型
             start = int(x["layers"][0])
-            # 接下来就要开始进行判断了,route层有两种情况,要么只有一个值和要么只有两个值的
-            # 尝试获取layers层的第二个值并将其赋给end,如果没有第二个值就让end为0
-            try:
-                end = int(x["layers"][1])
-            except:
-                end = 0
-            # 因为route层中的要求是负数(其实我觉得给出指定层数也是ok的,没必要负数。不过入乡随俗了)
-            # 如果layers第一个值大于0,则让它减去当前层的index,则start就为负数了
-            if start > 0:
-                start = start - index
-            # 如果layers层有两个值,并且第二个值大于0,那么也让它减去当前层的index,则end也就为负数了
-            if end > 0:
-                end = end - index
-            # 将一个EmptyLayer()添加到小模型中
+            # 这里的EmptyLayer是为了下面的改变输出维度使用的
             module.add_module("route_{0}".format(index), EmptyLayer())
-            # 这种情况就是layers有两个值,然后将指定层的维数相加起来
-            if end < 0:
-                filters = output_filters[index + start] + output_filters[index + end]
-            # 这种情况就是layers只有一个值,然后就直接输出那层的维数
-            else:
+            # 如果x["layers"]长度为1则直接将第x["layers"]层的输出维度当作当前EmptyLayer层的输出维度
+            if len(x["layers"]) == 1:
                 filters = output_filters[index + start]
+            # 如果x["layers"]长度为2则直接将第x["layers"][0]和x["layers"][1]层的输出维度相加当作当前EmptyLayer层的输出维度
+            else:
+                end = int(x["layers"][1])
+                filters = output_filters[index + start] + output_filters[end]
 
         # 提前创建一个空的shortcut层并将其添加到一个小模型中
         elif x["type"] == "shortcut":
@@ -138,6 +165,7 @@ def create_modules(blocks):
             yolo_layer = YOLOLayer(anchors, num_classes, inp_dim)
             # 将detection添加到当前的小模型中
             module.add_module("YOLOLayer_{}".format(index), yolo_layer)
+
         # 将module一个小模型层添加到总模型中 具体想看结构的话可以打印看看
         module_list.append(module)
         # 每结束一层,将当前层的输出维数赋值给下一层的输入维数
@@ -149,7 +177,7 @@ def create_modules(blocks):
     return net_info, module_list
 
 
-# 先创建一个空层 给route和shortcut层准备的,具体功能在Darknet类的forward中
+# 先创建一个空层 给route和shortcut层准备的,具体功能在Mainnet类的forward中
 class EmptyLayer(nn.Module):
     def __init__(self):
         super(EmptyLayer, self).__init__()
@@ -173,14 +201,16 @@ class YOLOLayer(nn.Module):
         # prediction.shape  -> batch_size,num_anchors*(self.num_classes + 5),grid_size,grid_size
         batch_size = prediction.size(0)
         grid_size = prediction.size(2)
+        # 图片从网络输入到YOLO层时缩小的倍数 标准YOLOv3有三个YOLO层,所以有三个stride 8 16 32
         stride = self.reso / grid_size
         FloatTensor = torch.cuda.FloatTensor if CUDA else torch.FloatTensor
+        # reshape后的prediction.shape  -> batch_size,num_anchors,(self.num_classes + 5),grid_size,grid_size
         prediction = prediction.reshape(batch_size, self.num_anchors, (self.num_classes + 5), grid_size, grid_size)
-        # 变换后的prediction.shape  -> batch_size, num_anchors, grid_size, grid_size, self.num_classes + 5
+        # permute后的prediction.shape  -> batch_size, num_anchors, grid_size, grid_size, (self.num_classes + 5)
         prediction = prediction.permute(0, 1, 3, 4, 2)
 
-        # 由于最终xywh都会在以stride为单位的featuremap上预测计算,所以这里anchors也要跟着改变
-        scaled_anchors = FloatTensor([(a[0] / stride, a[1] / stride) for a in self.anchors])
+        # 由于最终的xywh都会在以stride为单位的featuremap上预测计算,所以这里anchors的尺寸也要跟着改变(缩小)
+        scaled_anchors = FloatTensor([(anchor[0] / stride, anchor[1] / stride) for anchor in self.anchors])
         anchor_w = scaled_anchors[:, 0].reshape(1, self.num_anchors, 1, 1)
         anchor_h = scaled_anchors[:, 1].reshape(1, self.num_anchors, 1, 1)
 
@@ -190,14 +220,15 @@ class YOLOLayer(nn.Module):
         w = prediction[..., 2]  # Width
         h = prediction[..., 3]  # Height
         pred_conf = torch.sigmoid(prediction[..., 4])  # Conf
+        # 我这里使用的是softmax分类方法,和原作者sigmoid不同的是,我自己训练的数据集中没有狗,哈士奇或者人,女人这种类别从属现象发生
+        # 我自己遇到的都是 飞机 汽车 大炮 人 狗...等等互斥的类别.所以在此进行了更改
         pred_cls = torch.sigmoid(prediction[..., 5:])  # Cls pred.
 
         # 这里的x_offset与y_offset只是表示每个grid的左上角坐标,方便后面相加
         x_offset = torch.arange(grid_size).repeat(grid_size, 1).reshape([1, 1, grid_size, grid_size]).type(FloatTensor)
-        y_offset = torch.arange(grid_size).repeat(grid_size, 1).t().reshape([1, 1, grid_size, grid_size]).type(
-            FloatTensor)
+        y_offset = torch.arange(grid_size).repeat(grid_size, 1).t().reshape([1, 1, grid_size, grid_size]).type(FloatTensor)
 
-        # 这里为什要乘以压缩后的anchor(32倍)而不是原anchor的wh,因为pred_boxes中的xy坐标也都是在压缩32倍的环境下的.
+        # 这里为什要乘以压缩(8,16,32)倍后的anchor而不是原anchor的wh,因为pred_boxes中的wh值也都是在压缩(8,16,32)倍的环境下预测出来的.
         # 主要是为了保持一致,虽然马上就又恢复到正常大小了 (下面cat内容)
         pred_boxes = FloatTensor(prediction[..., :4].shape)
         pred_boxes[..., 0] = x + x_offset
@@ -207,7 +238,10 @@ class YOLOLayer(nn.Module):
 
         output = torch.cat(
             (
-                pred_boxes.reshape(batch_size, -1, 4) * stride,
+                # 这里的 -1 指的是 num_anchors*grid_size*grid_size
+                # 即最终output shape -> (batch_size,num_anchors*grid_size*grid_size,self.num_classes + 5)
+                # 这里的pred_boxes数据格式为 xywh在图片中的的相对大小
+                pred_boxes.reshape(batch_size, -1, 4) / grid_size,
                 pred_conf.reshape(batch_size, -1, 1),
                 pred_cls.reshape(batch_size, -1, self.num_classes),
             ),
@@ -217,6 +251,7 @@ class YOLOLayer(nn.Module):
         if targets is None:
             return output, 0
         else:
+            # 这个build_targets方法主要是为了计算loss做准备,把target转换成和pred_box相同的数据格式,方便计算
             iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf = build_targets(
                 pred_boxes=pred_boxes,
                 pred_cls=pred_cls,
@@ -225,25 +260,29 @@ class YOLOLayer(nn.Module):
                 ignore_thres=self.ignore_thres,
                 grid_size=grid_size,
             )
-            # Loss : Mask layer_outputs to ignore non-existing objects (except with conf. loss)
+            # 这里bool化的原因是方便下面进行切片取值
             obj_mask = obj_mask.bool()
             noobj_mask = noobj_mask.bool()
+            # 坐标损失
             loss_x = self.mse_loss(x[obj_mask], tx[obj_mask])
             loss_y = self.mse_loss(y[obj_mask], ty[obj_mask])
             loss_w = self.mse_loss(w[obj_mask], tw[obj_mask])
             loss_h = self.mse_loss(h[obj_mask], th[obj_mask])
+            # 检测损失
             loss_conf_obj = self.bce_loss(pred_conf[obj_mask], tconf[obj_mask])
             loss_conf_noobj = self.bce_loss(pred_conf[noobj_mask], tconf[noobj_mask])
             # 含有目标的损失权重要大于没有目标的损失权重
             # 但是实际上这里的代码和 eriklindernoren / PyTorch-YOLOv3一样，它们在损失函数上的一些细节与yolo3论文中有些许不同
             loss_conf = self.obj_scale * loss_conf_obj + self.noobj_scale * loss_conf_noobj
+            # 分类损失
             loss_cls = self.bce_loss(pred_cls[obj_mask], tcls[obj_mask])
+            # 损失累加
             loss = loss_x + loss_y + loss_w + loss_h + loss_conf + loss_cls
 
-            # Metrics
-            # 在target区域上正确预测含有目标且正确分类的概率 的 平均值 百分比
+            # 判断指标
+            # 在target区域上正确预测含有目标且正确分类的概率的平均值 相当于分类recall
             cls_acc = 100 * class_mask[obj_mask].mean()
-            # 在target区域上目标置信度的平均值
+            # 在target区域上目标置信度的平均值 相当于检测recall
             conf_obj = pred_conf[obj_mask].mean()
             # 在target区域上无目标置信度的平均值
             conf_noobj = pred_conf[noobj_mask].mean()
@@ -251,12 +290,13 @@ class YOLOLayer(nn.Module):
             iou50 = (iou_scores > 0.5).float()
             iou75 = (iou_scores > 0.75).float()
             detected_mask = conf50 * class_mask
-            # 这里precision的定义为: (预测iou>0.5 * conf>0.5)且pre_box的种类与target_box一致 / 所有预测 conf>0.5的
-            precision = torch.sum(iou50 * detected_mask) / (conf50.sum() + 1e-16)
-            recall50 = torch.sum(iou50 * detected_mask) / (obj_mask.sum() + 1e-16)
-            recall75 = torch.sum(iou75 * detected_mask) / (obj_mask.sum() + 1e-16)
+            # 这里precision的定义为: (预测iou>0.5 * 预测conf>0.5)且pre_box的种类与target_box一致 / 所有预测 conf>0.5的
+            precision = torch.sum(iou50 * detected_mask) / (conf50.sum() + 1e-8)
+            recall50 = torch.sum(iou50 * detected_mask) / (obj_mask.sum() + 1e-8)
+            recall75 = torch.sum(iou75 * detected_mask) / (obj_mask.sum() + 1e-8)
 
             self.metrics = {
+                # 损失
                 "loss": loss,
                 "x": loss_x.item(),
                 "y": loss_y.item(),
@@ -264,6 +304,7 @@ class YOLOLayer(nn.Module):
                 "h": loss_h.item(),
                 "conf": loss_conf.item(),
                 "cls": loss_cls.item(),
+                # 指标
                 "cls_acc": cls_acc.item(),
                 "recall_50": recall50.item(),
                 "recall_75": recall75.item(),
@@ -275,20 +316,20 @@ class YOLOLayer(nn.Module):
             return output, loss
 
 
-class Darknet(nn.Module):
+class Mainnet(nn.Module):
     def __init__(self, cfgfile):
-        super(Darknet, self).__init__()
+        super(Mainnet, self).__init__()
         # 获取yolov3.cfg的文件配置信息
         self.blocks = parse_cfg(cfgfile)
         # 获取模型参数及模型结构
         self.net_info, self.module_list = create_modules(self.blocks)
         self.yolo_layers = [layer[0] for layer in self.module_list if hasattr(layer[0], "metrics")]
-        self.seen = 0
-        self.header_info = np.array([0, 0, 0, self.seen, 0], dtype=np.int32)
-        self.loss_names = ["total_loss", "x", "y", "w", "h", "conf", "cls", "recall", "precision", ]
+        # self.seen = 0
+        # self.header_info = np.array([0, 0, 0, self.seen, 0], dtype=np.int32)
+        # self.loss_names = ["total_loss", "x", "y", "w", "h", "conf", "cls", "recall", "precision", ]
 
     def forward(self, x, targets=None):
-        # 获取前向传播的网络结构
+        # 获取前向传播的网络结构,第一层是net参数层
         modules = self.blocks[1:]
         # 这个是为了route层结合而临时创建的,保存了每层网络输出的数据,共107层
         layer_outputs = {}
@@ -298,27 +339,28 @@ class Darknet(nn.Module):
             # 获取当前层的种类
             module_type = (module["type"])
 
-            if module_type == "convolutional" or module_type == "upsample":
+            if module_type in ["conv", "conv_dw", "upsample",'max']:
                 # 开始输入数据, x就是处理好的batch_size张图片
                 x = self.module_list[i](x)
+            # 如果当前层为bottleneck时,并判断是否需要跳跃链接
+            elif module_type == "bottleneck":
+                skip = int(module["skip"])
+                if skip:
+                    x = self.module_list[i](x) + x
+                else:
+                    x = self.module_list[i](x)
             elif module_type == "route":
-                # 获取route层中谁和谁连接,一般都是前几层和前一层相叠加
+                # route层只有一个数字n的话就是将该route层等于第n层输出,
                 layers = module["layers"]
                 # 将其中的数字转为整型
                 layers = [int(a) for a in layers]
-                # 这里进行处理,由于格式需要,layers中的数字必须为负数
-                if (layers[0]) > 0:
-                    layers[0] = layers[0] - i
-                # 如果只有一个数字,则直接输出那层
+                # 如果只有一个数字,则该route层等于第n层输出
                 if len(layers) == 1:
-                    x = layer_outputs[i + (layers[0])]
-                # 如果有两个,则就是concat指定维度下相叠加
+                    x = layer_outputs[i + layers[0]]
+                # 如果有两个数字(n,m)则该route层等于将第n层与第m层相加(channel维度相加)然后输出
                 else:
-                    # 同上,需要对layers中的数字进行负处理。其实这里不进行负处理也是ok的,计算好指定cat层的index即可
-                    if (layers[1]) > 0:
-                        layers[1] = layers[1] - i
                     map1 = layer_outputs[i + layers[0]]
-                    map2 = layer_outputs[i + layers[1]]
+                    map2 = layer_outputs[layers[1]]
                     # 两个特征相叠加
                     x = torch.cat((map1, map2), 1)
             elif module_type == "shortcut":
@@ -339,88 +381,89 @@ class Darknet(nn.Module):
 
         return yolo_outputs if targets is None else (loss, yolo_outputs)
 
-    def load_weights(self, weights_path):
-        # Open the weights file
-        fp = open(weights_path, "rb")
-
-        # The first 5 values are header information
-        # 1. Major version number
-        # 2. Minor Version Number
-        # 3. Subversion number 
-        # 4,5. Images seen by the network (during training)
-        header = np.fromfile(fp, dtype=np.int32, count=5)
-        self.header = torch.from_numpy(header)
-        self.seen = self.header[3]
-
-        weights = np.fromfile(fp, dtype=np.float32)
-
-        ptr = 0
-        for i in range(len(self.module_list)):
-            module_type = self.blocks[i + 1]["type"]
-
-            # If module_type is convolutional load weights
-            # Otherwise ignore.
-
-            if module_type == "convolutional":
-                model = self.module_list[i]
-                try:
-                    batch_normalize = int(self.blocks[i + 1]["batch_normalize"])
-                except:
-                    batch_normalize = 0
-
-                conv = model[0]
-
-                if (batch_normalize):
-                    bn = model[1]
-
-                    # Get the number of weights of Batch Norm Layer
-                    num_bn_biases = bn.bias.numel()
-
-                    # Load the weights
-                    bn_biases = torch.from_numpy(weights[ptr:ptr + num_bn_biases])
-                    ptr += num_bn_biases
-
-                    bn_weights = torch.from_numpy(weights[ptr: ptr + num_bn_biases])
-                    ptr += num_bn_biases
-
-                    bn_running_mean = torch.from_numpy(weights[ptr: ptr + num_bn_biases])
-                    ptr += num_bn_biases
-
-                    bn_running_var = torch.from_numpy(weights[ptr: ptr + num_bn_biases])
-                    ptr += num_bn_biases
-
-                    # Cast the loaded weights into dims of model weights.
-                    bn_biases = bn_biases.view_as(bn.bias.data)
-                    bn_weights = bn_weights.view_as(bn.weight.data)
-                    bn_running_mean = bn_running_mean.view_as(bn.running_mean)
-                    bn_running_var = bn_running_var.view_as(bn.running_var)
-
-                    # Copy the data to model
-                    bn.bias.data.copy_(bn_biases)
-                    bn.weight.data.copy_(bn_weights)
-                    bn.running_mean.copy_(bn_running_mean)
-                    bn.running_var.copy_(bn_running_var)
-
-                else:
-                    # Number of biases
-                    num_biases = conv.bias.numel()
-
-                    # Load the weights
-                    conv_biases = torch.from_numpy(weights[ptr: ptr + num_biases])
-                    ptr = ptr + num_biases
-
-                    # reshape the loaded weights according to the dims of the model weights
-                    conv_biases = conv_biases.view_as(conv.bias.data)
-
-                    # Finally copy the data
-                    conv.bias.data.copy_(conv_biases)
-
-                # Let us load the weights for the Convolutional layers
-                num_weights = conv.weight.numel()
-
-                # Do the same as above for weights
-                conv_weights = torch.from_numpy(weights[ptr:ptr + num_weights])
-                ptr = ptr + num_weights
-
-                conv_weights = conv_weights.view_as(conv.weight.data)
-                conv.weight.data.copy_(conv_weights)
+    # 原作者自己写的加载权重的方法,现在我把它替换成利用pytorch内置的加载权重的方法了,已经用不上了
+    # def load_weights(self, weights_path):
+    #     # Open the weights file
+    #     fp = open(weights_path, "rb")
+    #
+    #     # The first 5 values are header information
+    #     # 1. Major version number
+    #     # 2. Minor Version Number
+    #     # 3. Subversion number
+    #     # 4,5. Images seen by the network (during training)
+    #     header = np.fromfile(fp, dtype=np.int32, count=5)
+    #     self.header = torch.from_numpy(header)
+    #     self.seen = self.header[3]
+    #
+    #     weights = np.fromfile(fp, dtype=np.float32)
+    #
+    #     ptr = 0
+    #     for i in range(len(self.module_list)):
+    #         module_type = self.blocks[i + 1]["type"]
+    #
+    #         # If module_type is convolutional load weights
+    #         # Otherwise ignore.
+    #
+    #         if module_type == "convolutional":
+    #             model = self.module_list[i]
+    #             try:
+    #                 batch_normalize = int(self.blocks[i + 1]["batch_normalize"])
+    #             except:
+    #                 batch_normalize = 0
+    #
+    #             conv = model[0]
+    #
+    #             if (batch_normalize):
+    #                 bn = model[1]
+    #
+    #                 # Get the number of weights of Batch Norm Layer
+    #                 num_bn_biases = bn.bias.numel()
+    #
+    #                 # Load the weights
+    #                 bn_biases = torch.from_numpy(weights[ptr:ptr + num_bn_biases])
+    #                 ptr += num_bn_biases
+    #
+    #                 bn_weights = torch.from_numpy(weights[ptr: ptr + num_bn_biases])
+    #                 ptr += num_bn_biases
+    #
+    #                 bn_running_mean = torch.from_numpy(weights[ptr: ptr + num_bn_biases])
+    #                 ptr += num_bn_biases
+    #
+    #                 bn_running_var = torch.from_numpy(weights[ptr: ptr + num_bn_biases])
+    #                 ptr += num_bn_biases
+    #
+    #                 # Cast the loaded weights into dims of model weights.
+    #                 bn_biases = bn_biases.view_as(bn.bias.data)
+    #                 bn_weights = bn_weights.view_as(bn.weight.data)
+    #                 bn_running_mean = bn_running_mean.view_as(bn.running_mean)
+    #                 bn_running_var = bn_running_var.view_as(bn.running_var)
+    #
+    #                 # Copy the data to model
+    #                 bn.bias.data.copy_(bn_biases)
+    #                 bn.weight.data.copy_(bn_weights)
+    #                 bn.running_mean.copy_(bn_running_mean)
+    #                 bn.running_var.copy_(bn_running_var)
+    #
+    #             else:
+    #                 # Number of biases
+    #                 num_biases = conv.bias.numel()
+    #
+    #                 # Load the weights
+    #                 conv_biases = torch.from_numpy(weights[ptr: ptr + num_biases])
+    #                 ptr = ptr + num_biases
+    #
+    #                 # reshape the loaded weights according to the dims of the model weights
+    #                 conv_biases = conv_biases.view_as(conv.bias.data)
+    #
+    #                 # Finally copy the data
+    #                 conv.bias.data.copy_(conv_biases)
+    #
+    #             # Let us load the weights for the Convolutional layers
+    #             num_weights = conv.weight.numel()
+    #
+    #             # Do the same as above for weights
+    #             conv_weights = torch.from_numpy(weights[ptr:ptr + num_weights])
+    #             ptr = ptr + num_weights
+    #
+    #             conv_weights = conv_weights.view_as(conv.weight.data)
+    #             conv.weight.data.copy_(conv_weights)
