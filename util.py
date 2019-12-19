@@ -5,12 +5,11 @@ import random
 import numpy as np
 import cv2
 import tqdm
-
+import time
 import matplotlib.pyplot as plt
 
 
-CUDA = torch.cuda.is_available()
-
+FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
 def xywh2xyxy(x):
     y = x.new(x.shape)
@@ -19,7 +18,25 @@ def xywh2xyxy(x):
     y[..., 2] = x[..., 0] + x[..., 2] / 2
     y[..., 3] = x[..., 1] + x[..., 3] / 2
     return y
+def parse_model_config(path):
+    """Parses the yolo-v3 layer configuration file and returns module definitions"""
+    file = open(path, 'r')
+    lines = file.read().split('\n')
+    lines = [x for x in lines if x and not x.startswith('#')]
+    lines = [x.rstrip().lstrip() for x in lines] # get rid of fringe whitespaces
+    module_defs = []
+    for line in lines:
+        if line.startswith('['): # This marks the start of a new block
+            module_defs.append({})
+            module_defs[-1]['type'] = line[1:-1].rstrip()
+            if module_defs[-1]['type'] == 'convolutional':
+                module_defs[-1]['batch_normalize'] = 0
+        else:
+            key, value = line.split("=")
+            value = value.strip()
+            module_defs[-1][key.rstrip()] = value.strip()
 
+    return module_defs
 
 def NMS(prediction, conf_thres, nms_thres):
     '''
@@ -42,25 +59,39 @@ def NMS(prediction, conf_thres, nms_thres):
     :param nms_thres: NMS阈值为0.4,大于即认为两个box大概率属于同一物体
     :return:
     '''
-
+    # 由于在NMS中要多次循环,所以在计算iou的时候尽量选择计算简单的方式来,这里就是提前将pred_box转换成xyxy
+    prediction[..., :4] = xywh2xyxy(prediction[..., :4])
     output = [None for _ in range(len(prediction))]
     for image_i, image_pred in enumerate(prediction):
         # 筛选出那些目标置信度大于conf_thres的pre_box      image_pred.shape  -> [10647, 16]
         image_pred = image_pred[image_pred[:, 4] >= conf_thres]
         # 这里是为了防止image_pred为空时,后续操作会报错报错而准备的,同下面那个continue同理
-        if image_pred.size(0) == 0:
+        if not image_pred.size(0):
             continue
         #        是否含有目标概率   预测的16个类别中概率最大的  为什么是[0],因为max返回(最大值,最大值索引)
         score = image_pred[:, 4] * image_pred[:, 5:].max(1)[0]  # score.shape  -> [40, ]
-        # 这里是按conf*max(cls)从大到小来重新排序的
+        # 这里是按conf*max(cls)从大到小来重新排序的,注意image_pred应该算是一张图片中所有pred_box的集合
         image_pred = image_pred[(-score).argsort()]
+        # 获取重新排序后的每个pred_box的分类概率最大值及其索引
         class_max, class_max_index = image_pred[:, 5:].max(1, keepdim=True)
         detections = torch.cat((image_pred[:, :5], class_max.float(), class_max_index.float()), 1)
         # 开始执行NMS
         keep_boxes = []
         while detections.size(0):
+            # a = time.time()
             # 匹配那些iou大于nms_thres的 unsqueeze(0)是在 第0维增加一维方便与detections[:, :4]进行计算
-            large_overlap = bbox_iou(detections[0, :4].unsqueeze(0), detections[:, :4]) > nms_thres
+            large_overlap = bbox_iou(detections[0, :4].unsqueeze(0), detections[:, :4], xywh=False) > nms_thres
+            # 注:这里的bbox_iou操作会有小概率发生意外,导致无限while循环
+            # 以下几行注释参考自:https://github.com/eriklindernoren/PyTorch-YOLOv3/issues/315
+            # 这下面三行代码是防止detections中出现一些异常box例如x1y1x2y2 =(nan,nan,nan,nan,)或(0,100,0,150)
+            # 这种无论怎么计算iou都为 nan 或 0 那么large_overlap及invalid就全为False,
+            # 不过由于这里的detections是Tensor,即最后 分子tensor([0., 0., 0., 0.], device='cuda:0') 分母tensor(0., device='cuda:0')
+            # 最后detections[0, :4]就tensor([nan, nan, nan, nan], device='cuda:0')
+            # 注意这里进行除法操作时并不会报分母为0的错误,即使分母为int型的0也不会报错,可能是因为在PyTorch中的张量算术运算比较特殊?
+            # 至少在PyTorch1.3 CUDA10.1 python3.7 Win10环境中是这样
+            if not any(large_overlap):
+                detections = np.delete(detections, 0, 0)
+                continue
             # 匹配同类的
             label_match = detections[0, -1] == detections[:, -1]
             # 合并以上两个条件
@@ -76,7 +107,7 @@ def NMS(prediction, conf_thres, nms_thres):
             detections = detections[~invalid]
         if keep_boxes:
             output[image_i] = torch.stack(keep_boxes)
-
+        # print((time.time() - a) * 1000)
     return output
 
 
@@ -152,7 +183,7 @@ def get_batch_statistics(outputs, targets, iou_threshold):
         if outputs[batch_i] is None:
             continue
         # 现在的output是经过NMS筛选的数据,即是最终预测的排过序的pred_box shape  -> len(outputs) == batch_size
-        # output[batch_i] -> [n*(x, y, w, h, object_conf, class_score, class_index)] n是指一张图片中经过NMS筛选后的pred_box数量
+        # output[batch_i] -> [n*(x, y, x, y, object_conf, class_score, class_index)] n是指一张图片中经过NMS筛选后的pred_box数量
         output = outputs[batch_i]
         pred_boxes = output[:, :4]
         pred_scores = output[:, 4]
@@ -176,7 +207,7 @@ def get_batch_statistics(outputs, targets, iou_threshold):
                 if pred_label not in target_labels:
                     continue
                 # 这里的box_index是pred_box与所有target_box中最大iou的target_box的索引,主要是防止某一个target_box被两次预测到
-                iou, box_index = bbox_iou(pred_box.unsqueeze(0), target_boxes).max(0)
+                iou, box_index = bbox_iou(pred_box.unsqueeze(0), target_boxes,xywh=False).max(0)
                 # 这里对true_positives的计算和作者代码有些不一样,因为我觉得即使是两个不同label的物体iou也可能大于阈值
                 # 详情见https://github.com/eriklindernoren/PyTorch-YOLOv3/issues/233
                 # 判断条件1.iou阈值
@@ -190,18 +221,21 @@ def get_batch_statistics(outputs, targets, iou_threshold):
     return batch_metrics
 
 
-def bbox_iou(box1, box2):
+def bbox_iou(box1, box2,xywh=True):
     """
     返回box1和box2的ious  box1,box2 -> xywh
     box1:box2可以是1:N 可以是1:1 可以是N:1 (N:M没测试过)
     """
     # 关于如何计算iou的,各位可以自己在草稿纸上画一个有部分重合的两块矩形,然后再标上相应的x,y坐标
     # 结合下面的操作步骤,即可一目了然
-    b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
-    b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
-    b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
-    b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
-
+    if xywh:
+        b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
+        b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
+        b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
+        b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
+    else:
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
     inter_rect_x1 = torch.max(b1_x1, b2_x1)
     inter_rect_y1 = torch.max(b1_y1, b2_y1)
     inter_rect_x2 = torch.min(b1_x2, b2_x2)
@@ -215,7 +249,6 @@ def bbox_iou(box1, box2):
     b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
 
     iou = inter_area / (b1_area + b2_area - inter_area + 1e-8)
-
     return iou
 
 
@@ -283,7 +316,7 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres, grid_size
     th = FloatTensor(nB, nA, nG, nG).fill_(0)
     tcls = FloatTensor(nB, nA, nG, nG, nC).fill_(0)
 
-    # 源target是padding后的0~1之间相对坐标,现在需要转换为以grid_size为单位下的坐标 (len(target),4)
+    # 源target是padding后的0~1之间相对坐标,现在需要转换为以grid_size为单位下的坐标 (len(target),4) 方便下面计算box_iou
     target_boxes = target[:, 2:6] * nG
     # target_xy target_wh shape -> (len(target),2)
     target_xy = target_boxes[:, :2]
@@ -326,7 +359,7 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres, grid_size
     # pred_cls[i_in_batch, best_ind, gj, gi].argmax(-1) 代表网络在target_box位置预测的最大概率的类的索引(即max_class_index) (len(target),)
     class_mask[i_in_batch, best_ind, gj, gi] = (pred_cls[i_in_batch, best_ind, gj, gi].argmax(-1) == target_labels).float()
     # pred_boxes[i_in_batch, best_ind, gj, gi]为(len(target),4)的tensor,这里只是计算网络在target_boxes位置预测的xywh与真实的xywh的iou
-    iou_scores[i_in_batch, best_ind, gj, gi] = bbox_iou(pred_boxes[i_in_batch, best_ind, gj, gi], target_boxes)
+    iou_scores[i_in_batch, best_ind, gj, gi] = bbox_iou(pred_boxes[i_in_batch, best_ind, gj, gi], target_boxes, xywh=True)
     # tconf 这里进行float处理的原因是为了后面计算loss时和pred_box的float类型对齐
     tconf = obj_mask.float()
     return iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf

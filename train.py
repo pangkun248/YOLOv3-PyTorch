@@ -8,30 +8,29 @@ from datasets import *
 from test import evaluate
 import visdom
 from terminaltables import AsciiTable
-
+# create_modules 里无法用[1:]代替pop(0)
+# 修正 无目标的图像训练方式 https://github.com/eriklindernoren/PyTorch-YOLOv3/pull/335/commits/b716edf2586f2e53903ffb0e0fe63b688b090fdb
 if __name__ == "__main__":
     map_name = 'wenyi'
-    parser = argparse.ArgumentParser(description='YOLOv3检测模型')
-    parser.add_argument("--epochs", help="训练轮数", default=100)
-    parser.add_argument("--batch_size", help="Batch size", default=32)
-    parser.add_argument("--gradient_accumulations", help="每隔几次更新梯度", default=2)
-    parser.add_argument("--confidence", help="目标检测结果置信度阈值", default=0.5)
-    parser.add_argument("--iou_thres", help="在计算TP时,条件之一就是两个box的iou>iou_thres", default=0.5)
-    parser.add_argument("--nms_thresh", help="NMS非极大值抑制阈值", default=0.4)
-    parser.add_argument("--weights", help="模型权重",
-                        default='D:\py_pro\YOLOv3-PyTorch\weights\\'+map_name+'\\tiny_ep69-map84.66-loss46.45000.weights', type=str)
-    parser.add_argument("--evaluation_interval", type=int, default=1, help="每隔几次使用验证集")
-    args = parser.parse_args()
-    print(args)
-    class_names = load_classes('D:\YOLOv3-PyTorch\data\\'+map_name+'\dnf_classes.txt')  # 加载所有种类名称
-    train_path = 'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\train.txt'
-    val_path = 'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\val.txt'
-    print("载入网络...")
-    model_name = 'yolov3-m2'
-    model = Mainnet('yolo_cfg\\'+model_name+'.cfg')
-    pretrained = False
-    if pretrained:
-        model.load_state_dict(torch.load(args.weights))
+    model_name = 'yolov3-m'
+    import_param = {
+        'epochs':100,
+        'batch_size':8,
+        'conf_thres':0.5,
+        'iou_thres':0.5,
+        'nms_thres':0.4,
+        'evaluation_interval': 1,
+        'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\'+model_name+'.cfg',
+        'weights':'D:\py_pro\YOLOv3-PyTorch\weights\\'+map_name+'\\yolov3_ep21-map55.69-loss0.57313.weights',
+        'class_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\dnf_classes.txt',
+        'train_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\train.txt',
+        'val_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\val.txt',
+        'pretrained':False
+    }
+    print(import_param,'\n',"载入网络...")
+    model = Mainnet(import_param['cfg_path']).cuda()
+    if import_param['pretrained']:
+        model.load_state_dict(torch.load(import_param['weights']))
     else:
         # 随机初始化权重,会对模型进行高斯随机初始化
         model.apply(weights_init_normal)
@@ -44,15 +43,12 @@ if __name__ == "__main__":
     assert reso % 32 == 0  # 判断如果不是32的整数倍就抛出异常
     assert reso > 32  # 判断如果网络输入图片尺寸小于32也抛出异常
 
-    if CUDA:
-        model.cuda()
-
-    train_dataset = ListDataset(train_path, reso)
+    train_dataset = ListDataset(import_param['train_path'], reso)
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=args.batch_size,
+        batch_size=import_param['batch_size'],
         shuffle=True,
-        num_workers=6,
+        num_workers=0,
         collate_fn=train_dataset.collate_fn,
     )
     class_metrics = [
@@ -75,9 +71,8 @@ if __name__ == "__main__":
     mAP = 0
     # 创建visdom可视化端口
     vis = visdom.Visdom(env='YOLOv3')
-
-    for epoch in range(1, args.epochs):
-        lr = lr*0.97
+    class_names = load_classes(import_param['class_path'])  # 加载所有种类名称
+    for epoch in range(1, import_param['epochs']):
         # 使用Adam优化器, 不懂得可以参考https://www.sohu.com/a/149921578_610300
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -108,7 +103,7 @@ if __name__ == "__main__":
             # conf_obj = 0
             # conf_noobj = 0
             for batch_metric in batch_metrics:
-                precision += batch_metric["cls_acc"]
+                precision += batch_metric["precision"]
                 recall_50 += batch_metric["recall_50"]
                 recall_75 += batch_metric["recall_75"]
                 # cls_acc += batch_metric["cls_acc"]
@@ -118,7 +113,7 @@ if __name__ == "__main__":
                 "[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, precision: %.5f, recall_50: %.5f, recall_75: %.5f]"
                 % (
                     epoch,
-                    args.epochs,
+                    import_param['epochs'],
                     batch_i,
                     len(train_dataloader),
                     loss.item(),
@@ -131,7 +126,7 @@ if __name__ == "__main__":
                 )
             )
         # 每epoch输出一次详细loss
-        log_str = "\n [Epoch %d/%d] " % (epoch, args.epochs)
+        log_str = "\n [Epoch %d/%d] " % (epoch, import_param['epochs'])
         log_str += " Total loss:" + str(loss.item()) + '\n'
         metric_table = [["Metrics", *["YOLO Layer " + str(i + 1) for i in range(len(model.yolo_layers))]]]
         for i, metric in enumerate(class_metrics):
@@ -150,22 +145,22 @@ if __name__ == "__main__":
                      'linecolor':np.array([[25, 25, 100]])
                  })
         # 训练阶段每隔一定epoch在验证集上测试效果
-        if epoch % args.evaluation_interval == 0:
+        if epoch % import_param['evaluation_interval'] == 0:
             print("\n---- 评估模型 ----lr:" + str(lr))
             precision, recall, AP, f1, ap_class = evaluate(
                 model,
-                path=val_path,
-                iou_thres=args.iou_thres,
-                conf_thres=args.confidence,
-                nms_thres=args.nms_thresh,
+                path=import_param['val_path'],
+                iou_thres=import_param['iou_thres'],
+                conf_thres=import_param['conf_thres'],
+                nms_thres=import_param['nms_thres'],
                 img_size=reso,
-                batch_size=args.batch_size,
+                batch_size=import_param['batch_size'],
             )
             # 可视化mAP输出
             vis.line(X=torch.tensor([epoch]), Y=torch.tensor([AP.mean()]), win='mAP', update='append',
                      opts={'title': 'mAP','linecolor':np.array([[25, 25, 100]])})
 
-            mAP_path = 'D:\YOLOv3-PyTorch\mAP\\'+map_name+'-'+model_name+'-'+str(args.batch_size)+'.txt'
+            mAP_path = 'D:\py_pro\YOLOv3-PyTorch\mAP\\'+map_name+'-'+model_name+'.txt'
             with open(mAP_path,'a+') as f:
                 f.write(str(epoch)+' '+ str(AP.mean())+'\n')
             # 输出 class APs 和 mAP

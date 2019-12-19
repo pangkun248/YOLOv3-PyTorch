@@ -44,7 +44,7 @@ class ImageFolder(Dataset):
     def __getitem__(self, index):
         img_path = self.files[index]
         # Extract image as PyTorch tensor
-        img = transforms.ToTensor()(Image.open(img_path).convert('RGB'))
+        img = transforms.ToTensor()(Image.open(img_path))
         # Pad to square resolution
         img, _ = pad_to_square(img, 0)
         # Resize
@@ -78,7 +78,7 @@ class ListDataset(Dataset):
         # 根据index获取对应的图片路径,并去除右边的空格
         img_path = self.img_files[index].rstrip()
         # ToTensor这一步已经包含了归一化(1/255.0)
-        img = transforms.ToTensor()(Image.open(img_path).convert('RGB'))
+        img = transforms.ToTensor()(Image.open(img_path))
 
         img, pad = pad_to_square(img, 0)
         # img变成一个正方形图片了,padded_h, padded_w=max(h, w),多出部分已被填充128相素值

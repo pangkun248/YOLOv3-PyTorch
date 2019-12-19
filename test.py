@@ -23,6 +23,7 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
         labels += targets[:, 1].numpy().tolist()
         # 这里的targets中xywh还是以(0,1)之间的相对坐标
         targets = targets.cuda()
+        targets[:, 2:] = xywh2xyxy(targets[:, 2:]*320)
         imgs = imgs.cuda()
 
         with torch.no_grad():
