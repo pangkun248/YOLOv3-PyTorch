@@ -15,12 +15,10 @@ if __name__ == "__main__":
     map_name = 'wenyi'
     model_name = 'yolov3-m'
     import_param = {
-        'epochs': 100,
         'batch_size': 1,
         'conf_thres': 0.8,
         'iou_thres': 0.5,
         'nms_thres': 0.4,
-        'evaluation_interval': 4,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
         'weights': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3.weights',
         'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\coco.txt',
