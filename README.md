@@ -5,7 +5,7 @@
 修改的地方:见代码,只要我更改了一般都会在代码中有注释以及我为什么这样做.不过改动的地方不多
 
 代码环境:
-win10 cuda10.0 cudnn7.6.1 python3.7 pytorch1.3
+win10 cuda10.1 cudnn7.6.1 python3.7 pytorch1.3
 
 数据文件和权重文件我把它放到百度云,需要的自取.[百度云](https://pan.baidu.com/s/1CG7zlJTAlDm-eImvQr0xTQ),提取码:fh3s
 
