@@ -13,29 +13,26 @@ import cv2
 
 if __name__ == "__main__":
     map_name = 'wenyi'
-    model_name = 'yolov3-m'
+    model_name = 'yolov3-lite'
     import_param = {
         'batch_size': 1,
         'conf_thres': 0.8,
-        'iou_thres': 0.5,
         'nms_thres': 0.4,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3.weights',
-        'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\coco.txt',
+        'weights': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3-lite_ep99-map66.12-loss37.64719.weights',
+        'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
         'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test\\',
-
     }
-
     print(import_param, '\n', "载入网络...")
     # 在GPU上加载模型
     model = Mainnet(import_param['cfg_path']).cuda()
-
-    model.load_darknet_weights(import_param['weights'])
+    # model.load_darknet_weights(import_param['weights'])
+    model.load_state_dict(torch.load(import_param['weights_path']))
     # 非训练阶段需要使用eval()模式
     model.eval()
     dataloader = DataLoader(
         ImageFolder(import_param['test_path'],
-                    img_size=int(model.net_info['height'])),
+                    img_size=320),
                     batch_size=import_param['batch_size'],
                     shuffle=False,
                     num_workers=0,
@@ -50,15 +47,23 @@ if __name__ == "__main__":
     imgs = []  # 图片保存路径
     img_detections = []  # 每张图片的检测结果
     print("\nPerforming object detection:")
+    cost_a = 0
+    cost_b = 0
     for batch_i, (img_paths, input_imgs) in enumerate(dataloader):
         # Configure input
         input_imgs = input_imgs.type(FloatTensor)
         with torch.no_grad():
             a = time.time()
             detections = model(input_imgs)
+            # print(detections)
+            # exit()
+            b = time.time()
             detections = NMS(detections, import_param['conf_thres'], import_param['nms_thres'])
-            print('nms time:',(time.time() - a) * 1000)
-        # print("\t+ Batch %d, Inference Time: %s ms" % (batch_i, cost_time*1000/batch_i))
+            if batch_i == 0:
+                continue
+            cost_a +=(time.time()-a)*1000
+            cost_b +=(time.time()-b)*1000
+        print(" Batch %d, 检测耗时: %.2fms NMS: %.2fms" % (batch_i, cost_a/batch_i, cost_b/batch_i))
         imgs.extend(img_paths)
         img_detections.extend(detections)
 
@@ -78,7 +83,6 @@ if __name__ == "__main__":
                 detections[:,1:4:2] -= (w - h) / 2
             else:
                 detections[:,0:3:2] -= (h - w) / 2
-            print(detections)
             # 随机取一个颜色
             for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
                 print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
@@ -92,9 +96,9 @@ if __name__ == "__main__":
                 # 画出label框
                 draw.rectangle([x1, y1-label_h,x1+label_w,y1],fill=colors[int(cls_pred)])
                 draw.text((x1, y1-label_h), label, fill=(0, 0, 0), font=font)
-            img = np.array(img)[...,::-1]
+        img = np.array(img)[...,::-1]
         cv2.imshow('result',img)
-        cv2.waitKey(0)
-        # 保存测试结果
-        filename = path.split("\\")[-1].split(".")[0]
-        cv2.imwrite('D:\py_pro\YOLOv3-PyTorch\output\{}.jpg'.format(filename),img)
+        cv2.waitKey(1)
+        # 保存测试结果,获取测试图片文件名
+        # filename = path.split("\\")[-1].split(".")[0]
+        # cv2.imwrite('D:\py_pro\YOLOv3-PyTorch\output\{}.jpg'.format(filename),img)

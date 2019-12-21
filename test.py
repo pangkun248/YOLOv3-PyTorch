@@ -21,8 +21,7 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
     sample_metrics = []  # List of tuples (TP, confs, pred)
     for batch_i, (_, imgs, targets) in enumerate(tqdm.tqdm(dataloader, desc="Detecting objects")):
         labels += targets[:, 1].numpy().tolist()
-        # 这里的targets中xywh还是以(0,1)之间的相对坐标
-        targets = targets.cuda()
+        # 这里的targets中xywh还是以(0,1)之间的相对坐标,在计算TP时tensor在cpu上计算的会更快
         targets[:, 2:] = xywh2xyxy(targets[:, 2:]*320)
         imgs = imgs.cuda()
 
@@ -46,44 +45,42 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", type=int, default=8, help="size of each image batch")
-    parser.add_argument("--model_def", type=str, default="yolo_cfg/yolov3-m.cfg", help="path to model definition file")
-    parser.add_argument("--weights_path", type=str, default="weights/mogu/yolov3-m_ep90-map92.83-loss0.21698.weights",
-                        help="path to weights file")
-    parser.add_argument("--iou_thres", type=float, default=0.5, help="在计算TP时,条件之一就是两个box的iou>iou_thres")
-    parser.add_argument("--conf_thres", type=float, default=0.7, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
-    parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--img_size", type=int, default=320, help="size of each image dimension")
-    opt = parser.parse_args()
-    print(opt)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    valid_path = r'E:\YOLOv3-PyTorch\data\mogu\val.txt'
-    class_names = r'E:\YOLOv3-PyTorch\data\mogu\dnf_classes.txt'
+    map_name = 'wenyi'
+    model_name = 'yolov3'
+    import_param = {
+        'batch_size': 1,
+        'conf_thres': 0.8,
+        'iou_thres': 0.5,
+        'nms_thres': 0.4,
+        'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
+        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep3-map13.07-loss4.51528.weights',
+        'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
+    }
+    print(import_param, '\n', "载入网络...")
+    valid_path = r'D:\py_pro\YOLOv3-PyTorch\data\wenyi\val.txt'
+    class_names = r'D:\py_pro\YOLOv3-PyTorch\data\wenyi\dnf_classes.txt'
     with open(class_names, 'r') as file:
         class_list = [i.replace('\n', '') for i in file.readlines()]
-    # Initiate model
-    model = Mainnet(opt.model_def).cuda()
-    if opt.weights_path.endswith(".weights"):
+    # 在GPU上初始化模型
+    model = Mainnet(import_param['cfg_path']).cuda()
+    if import_param['weights_path'].endswith(".weights"):
         # 加载模型文件
-        model.load_state_dict(torch.load(opt.weights_path))
+        model.load_darknet_weights(import_param['weights_path'])
+        # model.load_state_dict(torch.load(opt.weights_path))
     else:
-        # Load checkpoint weights
-        model.load_state_dict(torch.load(opt.weights_path))
+        print('无检测模型')
+        exit()
+        # model.load_state_dict(torch.load(import_param['weights_path']))
 
-    print("\n计算 mAP...")
-
+    print("计算 mAP...")
     precision, recall, AP, f1, ap_class = evaluate(
         model,
         path=valid_path,
-        iou_thres=opt.iou_thres,
-        conf_thres=opt.conf_thres,
-        nms_thres=opt.nms_thres,
-        img_size=opt.img_size,
-        batch_size=8,
+        iou_thres=import_param['iou_thres'],
+        conf_thres=import_param['conf_thres'],
+        nms_thres=import_param['nms_thres'],
+        img_size=int(model.net_info['height']),
+        batch_size=import_param['batch_size'],
     )
     for i, c in enumerate(ap_class):
         print("+ Class '{}' ({}) - AP:{}  recall:{} precision:{}".format(c, class_list[c], round(AP[i],4),round(float(recall[i]),4),round(float(precision[i]),4)))

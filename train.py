@@ -8,20 +8,20 @@ from datasets import *
 from test import evaluate
 import visdom
 from terminaltables import AsciiTable
-# create_modules 里无法用[1:]代替pop(0)
+
 # 修正 无目标的图像训练方式 https://github.com/eriklindernoren/PyTorch-YOLOv3/pull/335/commits/b716edf2586f2e53903ffb0e0fe63b688b090fdb
 if __name__ == "__main__":
     map_name = 'wenyi'
-    model_name = 'yolov3-m'
+    model_name = 'yolov3-lite'
     import_param = {
         'epochs':100,
-        'batch_size':8,
+        'batch_size':64,
         'conf_thres':0.5,
-        'iou_thres':0.5,
+        'iou_thres':0.5,    # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一box不能被算作tp两次
         'nms_thres':0.4,
         'evaluation_interval': 1,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\'+model_name+'.cfg',
-        'weights':'D:\py_pro\YOLOv3-PyTorch\weights\\'+map_name+'\\yolov3_ep21-map55.69-loss0.57313.weights',
+        'weights':'D:\py_pro\YOLOv3-PyTorch\weights\\'+map_name+'\\yolov3_ep68-map77.16-loss0.22640.weights',
         'class_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\dnf_classes.txt',
         'train_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\train.txt',
         'val_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\val.txt',
@@ -30,7 +30,8 @@ if __name__ == "__main__":
     print(import_param,'\n',"载入网络...")
     model = Mainnet(import_param['cfg_path']).cuda()
     if import_param['pretrained']:
-        model.load_state_dict(torch.load(import_param['weights']))
+        model.load_darknet_weights(import_param['weights'])
+        # model.load_state_dict(torch.load(import_param['weights']))
     else:
         # 随机初始化权重,会对模型进行高斯随机初始化
         model.apply(weights_init_normal)
@@ -73,11 +74,11 @@ if __name__ == "__main__":
     vis = visdom.Visdom(env='YOLOv3')
     class_names = load_classes(import_param['class_path'])  # 加载所有种类名称
     for epoch in range(1, import_param['epochs']):
+        lr *= 0.97
         # 使用Adam优化器, 不懂得可以参考https://www.sohu.com/a/149921578_610300
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
         model.train()  # 训练的时候需要这一步,如果是测试的时候那就改成model.eval()
-        start_time = time.time()
         for batch_i, (img_path, imgs, targets) in enumerate(train_dataloader):
             # batches_done = len(train_dataloader) * epoch + batch_i
             imgs = imgs.cuda()
@@ -172,6 +173,6 @@ if __name__ == "__main__":
             # 根据mAP的值保存最佳模型
             if AP.mean() > mAP:
                 mAP = AP.mean()
-                torch.save(model.state_dict(), 'weights\\'+map_name+'\\'+model_name+'_ep' + str(epoch) + '-map%.2f' % (
+                model.save_darknet_weights('weights\\'+map_name+'\\'+model_name+'_ep' + str(epoch) + '-map%.2f' % (
                         AP.mean() * 100) + '-loss%.5f' % loss.item() + '.weights')
     torch.cuda.empty_cache()

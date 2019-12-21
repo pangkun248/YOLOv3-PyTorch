@@ -18,31 +18,38 @@ def xywh2xyxy(x):
     y[..., 2] = x[..., 0] + x[..., 2] / 2
     y[..., 3] = x[..., 1] + x[..., 3] / 2
     return y
-def parse_model_config(path):
-    """Parses the yolo-v3 layer configuration file and returns module definitions"""
-    file = open(path, 'r')
-    lines = file.read().split('\n')
-    lines = [x for x in lines if x and not x.startswith('#')]
-    lines = [x.rstrip().lstrip() for x in lines] # get rid of fringe whitespaces
-    module_defs = []
-    for line in lines:
-        if line.startswith('['): # This marks the start of a new block
-            module_defs.append({})
-            module_defs[-1]['type'] = line[1:-1].rstrip()
-            if module_defs[-1]['type'] == 'convolutional':
-                module_defs[-1]['batch_normalize'] = 0
-        else:
-            key, value = line.split("=")
-            value = value.strip()
-            module_defs[-1][key.rstrip()] = value.strip()
 
-    return module_defs
+
+def parse_cfg(cfgfile):
+    # 加载文件并过滤掉文本中多余内容
+    file = open(cfgfile, 'r')
+    # 按行读取 相当于readlines
+    lines = file.read().split('\n')
+    # 去掉空行,并去掉以#开头的注释行
+    lines = [x for x in lines if x and x[0] != '#']
+    # 去掉左右两边的空格(rstricp是去掉右边的空格，lstrip是去掉左边的空格)
+    lines = [x.strip() for x in lines]
+
+    blocks = []
+    for line in lines:
+        if line[0] == "[":  # 这是cfg文件中一个层(块)的开始
+            blocks.append({})
+            blocks[-1]['type'] = line[1:-1].strip()  # 把cfg的[]中的块名作为键type的值
+            # 如果是convolutional模块的话,默认batch_normalize为 0 .YOLOv3中有些层比如yolo前一层
+            # 或者主干网络为mobilenetv2中bottleneck最后一层都是线性激活函数,没有batch_normalize这个参数的
+            if blocks[-1]['type'] == 'convolutional':
+                blocks[-1]['batch_normalize'] = 0
+        else:
+            key, value = line.split("=")  # 按等号分割
+            blocks[-1][key.strip()] = value.strip()
+    return blocks
+
 
 def NMS(prediction, conf_thres, nms_thres):
     '''
     NMS 非最大值抑制过程
     1.先把conf_thres小于0.5的过滤掉
-    2.然后根据conf_thres*max(pre_class)的大小来排序各个pred_box,然后获取每个pred_box的score得分
+    2.然后获取每个pred_box的conf_thres*max(pre_class)值 记作score
     3.让image_pred根据score大小重新排序
     4.获取每个pred_box中所有预测类的最大值与其索引
     5.然后就是合并以上三个 最终image_pred[x,y,w,h,conf,max(class),ind(max_class)]
@@ -64,7 +71,7 @@ def NMS(prediction, conf_thres, nms_thres):
     output = [None for _ in range(len(prediction))]
     for image_i, image_pred in enumerate(prediction):
         # 筛选出那些目标置信度大于conf_thres的pre_box      image_pred.shape  -> [10647, 16]
-        image_pred = image_pred[image_pred[:, 4] >= conf_thres]
+        image_pred = image_pred[image_pred[:, 4] > conf_thres]
         # 这里是为了防止image_pred为空时,后续操作会报错报错而准备的,同下面那个continue同理
         if not image_pred.size(0):
             continue
@@ -90,21 +97,24 @@ def NMS(prediction, conf_thres, nms_thres):
             # 注意这里进行除法操作时并不会报分母为0的错误,即使分母为int型的0也不会报错,可能是因为在PyTorch中的张量算术运算比较特殊?
             # 至少在PyTorch1.3 CUDA10.1 python3.7 Win10环境中是这样
             if not any(large_overlap):
-                detections = np.delete(detections, 0, 0)
+                detections = detections[1:]
                 continue
-            # 匹配同类的
-            label_match = detections[0, -1] == detections[:, -1]
+            # 匹配同类的,其实这个条件在部分情况下省略会有更好的效果,即不区分是否在同一种类下的NMS
+            # label_match = detections[0, -1] == detections[:, -1]
             # 合并以上两个条件
-            invalid = large_overlap & label_match
+
+            # invalid = large_overlap & label_match
             # 注意这里这个变量名为什么叫weights,是因为代码作者(eriklindernoren)想要整合多个nms_thres大于阈值且预测属于同一类的pred_box
             # weights越大代表含有某一类物体的特征越多,同理越小代表越少,但是蚊子再小也是块肉对吧.
             # 我觉得作者应该是想让预测的结果更加精确些,希望尽可能的能把目标特征保留下来.整合特征吧
-            weights = detections[invalid, 4:5]
-            detections[0, :4] = (weights * detections[invalid, :4]).sum(0) / weights.sum()
+            weights = detections[large_overlap, 4:5]
+            detections[0, :4] = (weights * detections[large_overlap, :4]).sum(0) / weights.sum()
             keep_boxes += [detections[0]]
             # 这一步就是把剩下那些iou小于nms_thres或者和detections[0]不同类(~取反操作)的重新赋值给detections,
-            # 因为每次至少减少一个pred_box,所以最后detections.size(0)一定为 0
-            detections = detections[~invalid]
+            # 一般情况下每次循环会减少一个或多个pred_box,所以最后detections.size(0)不出意外的话会等于 0
+            # 注意！如果detections中出现了一些奇怪的box,像上面说的那样,那么这里的invalid就全部为False,
+            # 即detections还是等于其本身.不会减少任何pred_box.就陷入无限循环了
+            detections = detections[~large_overlap]
         if keep_boxes:
             output[image_i] = torch.stack(keep_boxes)
         # print((time.time() - a) * 1000)
