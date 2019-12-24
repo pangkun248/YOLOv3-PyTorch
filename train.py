@@ -8,20 +8,20 @@ from datasets import *
 from test import evaluate
 import visdom
 from terminaltables import AsciiTable
+from torchsummary import summary
 
-# 修正 无目标的图像训练方式 https://github.com/eriklindernoren/PyTorch-YOLOv3/pull/335/commits/b716edf2586f2e53903ffb0e0fe63b688b090fdb
 if __name__ == "__main__":
     map_name = 'wenyi'
-    model_name = 'yolov3-lite'
+    model_name = 'yolov3-mobile'
     import_param = {
         'epochs':100,
-        'batch_size':64,
+        'batch_size':16,
         'conf_thres':0.5,
         'iou_thres':0.5,    # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一box不能被算作tp两次
         'nms_thres':0.4,
         'evaluation_interval': 1,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\'+model_name+'.cfg',
-        'weights':'D:\py_pro\YOLOv3-PyTorch\weights\\'+map_name+'\\yolov3_ep68-map77.16-loss0.22640.weights',
+        'weights':'D:\py_pro\YOLOv3-PyTorch\weights\\'+map_name+'\\yolov3-lite_ep99-map66.12-loss37.64719.weights',
         'class_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\dnf_classes.txt',
         'train_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\train.txt',
         'val_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\val.txt',
@@ -36,7 +36,10 @@ if __name__ == "__main__":
         # 随机初始化权重,会对模型进行高斯随机初始化
         model.apply(weights_init_normal)
     print("网络权重加载成功.")
-
+    # parm = {}
+    # for name, parameters in model.named_parameters():
+    #     print(name, ':', parameters.size(),parameters)
+    # exit()
     # 设置网络输入图片尺寸大小与学习率
     reso = int(model.net_info["height"])
     lr = float(model.net_info["learning_rate"])
@@ -74,7 +77,7 @@ if __name__ == "__main__":
     vis = visdom.Visdom(env='YOLOv3')
     class_names = load_classes(import_param['class_path'])  # 加载所有种类名称
     for epoch in range(1, import_param['epochs']):
-        lr *= 0.97
+        lr *= 0.975
         # 使用Adam优化器, 不懂得可以参考https://www.sohu.com/a/149921578_610300
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -95,37 +98,53 @@ if __name__ == "__main__":
 
             # 获取每个yolo层的损失相关数据
             batch_metrics = [yolo.metrics for yolo in model.yolo_layers]
-            # 打印当前训练状态的各项损失值 这里我省略了几个指标没有输出,
-            # 因为我感觉以它们的数据表现来评判模型性能的话不是那么的清楚直观.需要的可以自行加上
-            precision = 0
-            recall_50 = 0
-            recall_75 = 0
-            # cls_acc = 0
-            # conf_obj = 0
-            # conf_noobj = 0
-            for batch_metric in batch_metrics:
-                precision += batch_metric["precision"]
-                recall_50 += batch_metric["recall_50"]
-                recall_75 += batch_metric["recall_75"]
-                # cls_acc += batch_metric["cls_acc"]
-                # conf_obj += batch_metric["conf_obj"]
-                # conf_noobj += batch_metric["conf_noobj"]
-            print(
-                "[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, precision: %.5f, recall_50: %.5f, recall_75: %.5f]"
-                % (
-                    epoch,
-                    import_param['epochs'],
-                    batch_i,
-                    len(train_dataloader),
-                    loss.item(),
-                    precision / 3,
-                    recall_50 / 3,
-                    recall_75 / 3,
-                    # cls_acc / 3,
-                    # conf_obj / 3,
-                    # conf_noobj / 3,
+            if targets.size(0):
+                # 打印当前训练状态的各项损失值 这里我省略了几个指标没有输出,
+                # 因为我感觉以它们的数据表现来评判模型性能的话不是那么的清楚直观.需要的可以自行加上
+                precision = 0
+                recall_50 = 0
+                recall_75 = 0
+                # cls_acc = 0
+                # conf_obj = 0
+                # conf_noobj = 0
+                for batch_metric in batch_metrics:
+                    precision += batch_metric["precision"]
+                    recall_50 += batch_metric["recall_50"]
+                    recall_75 += batch_metric["recall_75"]
+                    # cls_acc += batch_metric["cls_acc"]
+                    # conf_obj += batch_metric["conf_obj"]
+                    # conf_noobj += batch_metric["conf_noobj"]
+                print(
+                    "[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, precision: %.5f, recall_50: %.5f, recall_75: %.5f]"
+                    % (
+                        epoch,
+                        import_param['epochs'],
+                        batch_i,
+                        len(train_dataloader),
+                        loss.item(),
+                        precision / 3,
+                        recall_50 / 3,
+                        recall_75 / 3,
+                        # cls_acc / 3,
+                        # conf_obj / 3,
+                        # conf_noobj / 3,
+                    )
                 )
-            )
+            else:
+                conf_noobj = 0
+                for batch_metric in batch_metrics:
+                    conf_noobj += batch_metric["conf_noobj"]
+                print(
+                    "[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, conf_noobj: %.5f, 该batch无标注目标]"
+                    % (
+                        epoch,
+                        import_param['epochs'],
+                        batch_i,
+                        len(train_dataloader),
+                        loss.item(),
+                        conf_noobj / 3,
+                    )
+                )
         # 每epoch输出一次详细loss
         log_str = "\n [Epoch %d/%d] " % (epoch, import_param['epochs'])
         log_str += " Total loss:" + str(loss.item()) + '\n'
@@ -161,9 +180,9 @@ if __name__ == "__main__":
             vis.line(X=torch.tensor([epoch]), Y=torch.tensor([AP.mean()]), win='mAP', update='append',
                      opts={'title': 'mAP','linecolor':np.array([[25, 25, 100]])})
 
-            mAP_path = 'D:\py_pro\YOLOv3-PyTorch\mAP\\'+map_name+'-'+model_name+'.txt'
-            with open(mAP_path,'a+') as f:
-                f.write(str(epoch)+' '+ str(AP.mean())+'\n')
+            # mAP_path = 'D:\py_pro\YOLOv3-PyTorch\mAP\\'+map_name+'-'+model_name+'.txt'
+            # with open(mAP_path,'a+') as f:
+            #     f.write(str(epoch)+' '+ str(AP.mean())+'\n')
             # 输出 class APs 和 mAP
             ap_table = [["Index", "Class name", "Precision", "Recall", "AP", "F1-score"]]
             for i, c in enumerate(ap_class):
@@ -173,6 +192,6 @@ if __name__ == "__main__":
             # 根据mAP的值保存最佳模型
             if AP.mean() > mAP:
                 mAP = AP.mean()
-                model.save_darknet_weights('weights\\'+map_name+'\\'+model_name+'_ep' + str(epoch) + '-map%.2f' % (
+                torch.save(model.state_dict(),'weights\\'+map_name+'\\'+model_name+'_ep' + str(epoch) + '-map%.2f' % (
                         AP.mean() * 100) + '-loss%.5f' % loss.item() + '.weights')
     torch.cuda.empty_cache()

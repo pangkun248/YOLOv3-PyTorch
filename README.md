@@ -32,11 +32,11 @@ win10 cuda10.1 cudnn7.6.1 python3.7 pytorch1.3 GPU:1660 CPU:i5-8400
 
 | 模型名称 | 输入尺寸| GPU | CPU |
 | ----- | ------ |  ----- | ----- |
-| YOLOv3 | 320x320 |  29ms | 29ms |
-| YOLOv3-Mobilenet | 320x320 | unkwon | unkwon |
+| YOLOv3 | 320x320 |  31ms | 760ms |
+| YOLOv3-Mobilenet | 320x320 | unkwon | 366ms |
 | YOLOv3-MobilenetV2 | 320x320 | unkwon | unkwon |
-| YOLOv3-Tiny | 320x320 | 7.7ms | 103ms|
-| YOLOv3-Lite | 320x320 | 5.6ms | 73ms|
+| YOLOv3-Tiny | 320x320 | 9.5ms | 114ms|
+| YOLOv3-Lite | 320x320 | 5.8ms | 77ms|
 |YOLOv3-Tiny-Mobilenet | 320x320 | unkwon | unkwon |
 ###### 注: 各个模型的性能指标我暂时没有时间去训练测试,不过网上应该可以找得到。我这里只是暂时罗列出他们的速度对比
 

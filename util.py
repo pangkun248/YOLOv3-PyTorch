@@ -1,12 +1,8 @@
 from __future__ import division
 
 import torch
-import random
 import numpy as np
-import cv2
 import tqdm
-import time
-import matplotlib.pyplot as plt
 
 
 FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
@@ -275,22 +271,6 @@ def weights_init_normal(m):
     elif classname.find("BatchNorm2d") != -1:
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
-
-    def my_collate(self, batch):
-        paths, imgs, targets = list(zip(*batch))
-        # Remove empty placeholder targets
-        targets = [boxes for boxes in targets if boxes is not None]
-        # Add sample index to targets
-        for i, boxes in enumerate(targets):
-            boxes[:, 0] = i
-        targets = torch.cat(targets, 0)
-        # Selects new image size every tenth batch
-        if self.multiscale and self.batch_count % 10 == 0:
-            self.img_size = random.choice(range(self.min_size, self.max_size + 1, 32))
-        # Resize images to input shape
-        imgs = torch.stack([cv2.resize(img, self.img_size) for img in imgs])
-        self.batch_count += 1
-        return paths, imgs, targets
 
 
 def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres, grid_size):

@@ -126,6 +126,7 @@ class ListDataset(Dataset):
             #     print(i)
             #     continue
             boxes[:, 0] = i
+        # 这一步操做并不能筛选掉那些无标注目标的target,因为他是一个空的张量不是None,而cat可以
         # targets = [boxes for boxes in targets if boxes is not None]
         targets = torch.cat(targets, 0)
         # 多尺度训练,频率每10轮随机改变输入尺寸

@@ -13,20 +13,22 @@ import cv2
 
 if __name__ == "__main__":
     map_name = 'wenyi'
-    model_name = 'yolov3-lite'
+    model_name = 'yolov3'
     import_param = {
         'batch_size': 1,
         'conf_thres': 0.8,
         'nms_thres': 0.4,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3-lite_ep99-map66.12-loss37.64719.weights',
+        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep87-map70.33-loss0.06912.weights',
         'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
-        'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test\\',
+        'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test_wenyi\\',
     }
     print(import_param, '\n', "载入网络...")
     # 在GPU上加载模型
     model = Mainnet(import_param['cfg_path']).cuda()
-    # model.load_darknet_weights(import_param['weights'])
+    # for k,v in model.state_dict().items():
+    #     print(k,v.shape)
+    # exit()
     model.load_state_dict(torch.load(import_param['weights_path']))
     # 非训练阶段需要使用eval()模式
     model.eval()
@@ -50,13 +52,10 @@ if __name__ == "__main__":
     cost_a = 0
     cost_b = 0
     for batch_i, (img_paths, input_imgs) in enumerate(dataloader):
-        # Configure input
         input_imgs = input_imgs.type(FloatTensor)
         with torch.no_grad():
             a = time.time()
             detections = model(input_imgs)
-            # print(detections)
-            # exit()
             b = time.time()
             detections = NMS(detections, import_param['conf_thres'], import_param['nms_thres'])
             if batch_i == 0:
@@ -98,7 +97,7 @@ if __name__ == "__main__":
                 draw.text((x1, y1-label_h), label, fill=(0, 0, 0), font=font)
         img = np.array(img)[...,::-1]
         cv2.imshow('result',img)
-        cv2.waitKey(1)
+        cv2.waitKey(0)
         # 保存测试结果,获取测试图片文件名
         # filename = path.split("\\")[-1].split(".")[0]
         # cv2.imwrite('D:\py_pro\YOLOv3-PyTorch\output\{}.jpg'.format(filename),img)

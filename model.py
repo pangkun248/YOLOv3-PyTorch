@@ -95,8 +95,8 @@ def create_modules(blocks):
         elif block_type == "maxpool":
             size = int(block["size"])
             stride = int(block["stride"])
-            # if size == 2 and stride == 1:
-            #     module.add_module("padding", nn.ZeroPad2d((0, 1, 0, 1)))
+            if size == 2 and stride == 1:
+                module.add_module("padding", nn.ZeroPad2d((0, 1, 0, 1)))
             maxpool = nn.MaxPool2d(size, stride)
             module.add_module("maxpool", maxpool)
 
@@ -215,7 +215,7 @@ class YOLOLayer(nn.Module):
         # 如果是验证or测试的时候就到此为止了,直接返回预测的相关数据,否则返回loss进行更新梯度
         if targets is None:
             return output, 0
-        else:
+        elif targets.size(0):
             # 这个build_targets方法主要是为了计算loss做准备,把target转换成和pred_box相同的数据格式,方便计算
             iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf = build_targets(
                 pred_boxes=pred_boxes,
@@ -260,8 +260,8 @@ class YOLOLayer(nn.Module):
             recall50 = torch.sum(iou50 * detected_mask) / (obj_mask.sum() + 1e-8)
             recall75 = torch.sum(iou75 * detected_mask) / (obj_mask.sum() + 1e-8)
             self.metrics = {
-                # 损失
-                "loss": loss,
+                # 相关损失
+                "loss": loss.item(),
                 "x": loss_x.item(),
                 "y": loss_y.item(),
                 "w": loss_w.item(),
@@ -277,7 +277,16 @@ class YOLOLayer(nn.Module):
                 "conf_noobj": conf_noobj.item(),
                 "grid_size": grid_size,
             }
-            return output, loss
+        else:
+            loss_conf_noobj = self.bce_loss(pred_conf, torch.zeros_like(pred_conf))
+            loss = self.noobj_scale * loss_conf_noobj
+            conf_noobj = pred_conf.mean()
+
+            self.metrics = {
+                "loss": loss.item(),
+                "conf_noobj": conf_noobj.item(),
+            }
+        return output, loss
 
 class Mainnet(nn.Module):
     def __init__(self, cfgfile):
@@ -325,7 +334,6 @@ class Mainnet(nn.Module):
                 x, layer_loss = module[0](x, targets)
                 loss += layer_loss
                 yolo_outputs.append(x)
-
             layer_outputs.append(x)
         # 需要把三种尺度下的所有的anchors(3*(52*52+26*26+13*13))预测结果合并到一起.
         yolo_outputs = torch.cat(yolo_outputs, 1).detach().cpu()
@@ -340,7 +348,6 @@ class Mainnet(nn.Module):
             self.header_info = header  # Needed to write header when saving weights
             self.seen = header[3]  # number of images seen during training
             weights = np.fromfile(f, dtype=np.float32)  # The rest are weights
-
         # Establish cutoff for loading backbone weights
         cutoff = None
         if "darknet53.conv.74" in weights_path:
@@ -352,62 +359,89 @@ class Mainnet(nn.Module):
                 break
             if module_def["type"] == "convolutional":
                 conv_layer = module[0]
+                num_w = conv_layer.weight.numel()
+                conv_w = torch.from_numpy(weights[ptr: ptr + num_w]).reshape_as(conv_layer.weight)
+                conv_layer.weight.detach().copy_(conv_w)
+                ptr += num_w
                 if module_def["batch_normalize"]:
-                    # Load BN bias, weights, running mean and running variance
+                    # 加载 bn层的  weights, bias, running_mean, running_var等参数
                     bn_layer = module[1]
-                    num_b = bn_layer.bias.numel()  # Number of biases
-                    # Bias
-                    bn_b = torch.from_numpy(weights[ptr: ptr + num_b]).view_as(bn_layer.bias)
-                    bn_layer.bias.data.copy_(bn_b)
-                    ptr += num_b
+                    num_b = bn_layer.bias.numel()
                     # Weight
-                    bn_w = torch.from_numpy(weights[ptr: ptr + num_b]).view_as(bn_layer.weight)
-                    bn_layer.weight.data.copy_(bn_w)
+                    bn_w = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.weight)
+                    bn_layer.weight.detach().copy_(bn_w)
+                    ptr += num_b
+                    # Bias
+                    bn_b = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.bias)
+                    bn_layer.bias.detach().copy_(bn_b)
                     ptr += num_b
                     # Running Mean
-                    bn_rm = torch.from_numpy(weights[ptr: ptr + num_b]).view_as(bn_layer.running_mean)
-                    bn_layer.running_mean.data.copy_(bn_rm)
+                    bn_rm = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.running_mean)
+                    bn_layer.running_mean.detach().copy_(bn_rm)
                     ptr += num_b
                     # Running Var
-                    bn_rv = torch.from_numpy(weights[ptr: ptr + num_b]).view_as(bn_layer.running_var)
-                    bn_layer.running_var.data.copy_(bn_rv)
+                    bn_rv = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.running_var)
+                    bn_layer.running_var.detach().copy_(bn_rv)
                     ptr += num_b
                 else:
-                    # Load conv. bias
+                    # 加载conv层的bias参数
                     num_b = conv_layer.bias.numel()
-                    conv_b = torch.from_numpy(weights[ptr: ptr + num_b]).view_as(conv_layer.bias)
-                    conv_layer.bias.data.copy_(conv_b)
+                    conv_b = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(conv_layer.bias)
+                    conv_layer.bias.detach().copy_(conv_b)
                     ptr += num_b
-                # Load conv. weights
+            elif module_def["type"] == "convolutional_dw":
+                # 加载conv_dw层的weight参数
+                conv_layer = module[0]
                 num_w = conv_layer.weight.numel()
-                conv_w = torch.from_numpy(weights[ptr: ptr + num_w]).view_as(conv_layer.weight)
-                conv_layer.weight.data.copy_(conv_w)
+                conv_w = torch.from_numpy(weights[ptr: ptr + num_w]).reshape_as(conv_layer.weight)
+                conv_layer.weight.detach().copy_(conv_w)
                 ptr += num_w
 
-    def save_darknet_weights(self, path, cutoff=-1):
-        """
-            @:param path    - path of the new weights file
-            @:param cutoff  - save layers between 0 and cutoff (cutoff = -1 -> all are saved)
-        """
-        fp = open(path, "wb")
-        self.header_info[3] = self.seen
-        self.header_info.tofile(fp)
+                # 加载 bn层的  weights, bias, running_mean, running_var等参数
+                bn_layer = module[1]
+                num_b = bn_layer.bias.numel()
+                # Weight
+                bn_w = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.weight)
+                bn_layer.weight.detach().copy_(bn_w)
+                ptr += num_b
+                # Bias
+                bn_b = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.bias)
+                bn_layer.bias.detach().copy_(bn_b)
+                ptr += num_b
+                # Running Mean
+                bn_rm = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.running_mean)
+                bn_layer.running_mean.detach().copy_(bn_rm)
+                ptr += num_b
+                # Running Var
+                bn_rv = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.running_var)
+                bn_layer.running_var.detach().copy_(bn_rv)
+                ptr += num_b
 
-        # Iterate through layers
-        for i, (module_def, module) in enumerate(zip(self.blocks[:cutoff], self.module_list[:cutoff])):
-            if module_def["type"] == "convolutional":
-                conv_layer = module[0]
-                # If batch norm, load bn first
-                if module_def["batch_normalize"]:
-                    bn_layer = module[1]
-                    bn_layer.bias.data.cpu().numpy().tofile(fp)
-                    bn_layer.weight.data.cpu().numpy().tofile(fp)
-                    bn_layer.running_mean.data.cpu().numpy().tofile(fp)
-                    bn_layer.running_var.data.cpu().numpy().tofile(fp)
-                # Load conv bias
-                else:
-                    conv_layer.bias.data.cpu().numpy().tofile(fp)
-                # Load conv weights
-                conv_layer.weight.data.cpu().numpy().tofile(fp)
+                # conv_pw层 同理
+                conv_layer = module[3]
+                num_w = conv_layer.weight.numel()
+                conv_w = torch.from_numpy(weights[ptr: ptr + num_w]).reshape_as(conv_layer.weight)
+                conv_layer.weight.detach().copy_(conv_w)
+                ptr += num_w
 
-        fp.close()
+                # 加载 bn层的  weights, bias, running_mean, running_var等参数
+                bn_layer = module[4]
+                num_b = bn_layer.bias.numel()
+                # Weight
+                bn_w = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.weight)
+                bn_layer.weight.detach().copy_(bn_w)
+                ptr += num_b
+                # Bias
+                bn_b = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.bias)
+                bn_layer.bias.detach().copy_(bn_b)
+                ptr += num_b
+                # Running Mean
+                bn_rm = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.running_mean)
+                bn_layer.running_mean.detach().copy_(bn_rm)
+                ptr += num_b
+                # Running Var
+                bn_rv = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.running_var)
+                bn_layer.running_var.detach().copy_(bn_rv)
+                ptr += num_b
+
+
