@@ -53,7 +53,7 @@ if __name__ == "__main__":
         'iou_thres': 0.5,
         'nms_thres': 0.4,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep3-map13.07-loss4.51528.weights',
+        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep87-map70.33-loss0.06912.weights',
         'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
     }
     print(import_param, '\n', "载入网络...")
@@ -65,8 +65,8 @@ if __name__ == "__main__":
     model = Mainnet(import_param['cfg_path']).cuda()
     if import_param['weights_path'].endswith(".weights"):
         # 加载模型文件
-        model.load_darknet_weights(import_param['weights_path'])
-        # model.load_state_dict(torch.load(opt.weights_path))
+        # model.load_darknet_weights(import_param['weights_path'])
+        model.load_state_dict(torch.load(import_param['weights_path']))
     else:
         print('无检测模型')
         exit()

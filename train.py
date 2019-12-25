@@ -36,10 +36,6 @@ if __name__ == "__main__":
         # 随机初始化权重,会对模型进行高斯随机初始化
         model.apply(weights_init_normal)
     print("网络权重加载成功.")
-    # parm = {}
-    # for name, parameters in model.named_parameters():
-    #     print(name, ':', parameters.size(),parameters)
-    # exit()
     # 设置网络输入图片尺寸大小与学习率
     reso = int(model.net_info["height"])
     lr = float(model.net_info["learning_rate"])
@@ -77,7 +73,7 @@ if __name__ == "__main__":
     vis = visdom.Visdom(env='YOLOv3')
     class_names = load_classes(import_param['class_path'])  # 加载所有种类名称
     for epoch in range(1, import_param['epochs']):
-        lr *= 0.975
+        lr *= 0.98
         # 使用Adam优化器, 不懂得可以参考https://www.sohu.com/a/149921578_610300
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 

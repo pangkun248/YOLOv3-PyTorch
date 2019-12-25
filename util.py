@@ -66,9 +66,13 @@ def NMS(prediction, conf_thres, nms_thres):
     prediction[..., :4] = xywh2xyxy(prediction[..., :4])
     output = [None for _ in range(len(prediction))]
     for image_i, image_pred in enumerate(prediction):
-        # 筛选出那些目标置信度大于conf_thres的pre_box      image_pred.shape  -> [10647, 16]
+        # 过滤掉所有目标概率小于conf_thres的pre_box      image_pred.shape  -> [10647, 16]
         image_pred = image_pred[image_pred[:, 4] > conf_thres]
         # 这里是为了防止image_pred为空时,后续操作会报错报错而准备的,同下面那个continue同理
+        if not image_pred.size(0):
+            continue
+        # 过滤掉所有分类概率小于conf_thres的pred_box
+        image_pred = image_pred[image_pred[:, 5:].max(1)[0] > conf_thres]
         if not image_pred.size(0):
             continue
         #        是否含有目标概率   预测的16个类别中概率最大的  为什么是[0],因为max返回(最大值,最大值索引)

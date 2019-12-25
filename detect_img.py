@@ -26,9 +26,6 @@ if __name__ == "__main__":
     print(import_param, '\n', "载入网络...")
     # 在GPU上加载模型
     model = Mainnet(import_param['cfg_path']).cuda()
-    # for k,v in model.state_dict().items():
-    #     print(k,v.shape)
-    # exit()
     model.load_state_dict(torch.load(import_param['weights_path']))
     # 非训练阶段需要使用eval()模式
     model.eval()
@@ -58,11 +55,9 @@ if __name__ == "__main__":
             detections = model(input_imgs)
             b = time.time()
             detections = NMS(detections, import_param['conf_thres'], import_param['nms_thres'])
-            if batch_i == 0:
-                continue
             cost_a +=(time.time()-a)*1000
             cost_b +=(time.time()-b)*1000
-        print(" Batch %d, 检测耗时: %.2fms NMS: %.2fms" % (batch_i, cost_a/batch_i, cost_b/batch_i))
+        # print(" Batch %d, 检测耗时: %.2fms NMS: %.2fms" % (batch_i, cost_a/batch_i, cost_b/batch_i))
         imgs.extend(img_paths)
         img_detections.extend(detections)
 
