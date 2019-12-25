@@ -373,6 +373,10 @@
     <option name="LAST_COMMIT_MESSAGE" value="阶段性更新" />
   </component>
   <component name="WindowStateProjectService">
+    <state x="611" y="116" key="CommitChangelistDialog2" timestamp="1577267991611">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="611" y="116" key="CommitChangelistDialog2/0.0.1920.1040@0.0.1920.1040" timestamp="1577267991611" />
     <state x="740" y="278" key="FileChooserDialogImpl" timestamp="1577261923533">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
@@ -397,6 +401,10 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="736" y="121" key="SettingsEditor/0.0.1920.1040@0.0.1920.1040" timestamp="1577230239599" />
+    <state x="552" y="256" key="Vcs.Push.Dialog.v2" timestamp="1577268004104">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state x="552" y="256" key="Vcs.Push.Dialog.v2/0.0.1920.1040@0.0.1920.1040" timestamp="1577268004104" />
     <state x="92" y="92" width="1736" height="856" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1577260927982">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>

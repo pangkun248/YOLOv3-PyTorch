@@ -42,8 +42,6 @@ win10 cuda10.1 cudnn7.6.1 python3.7 pytorch1.3 GPU:1660 CPU:i5-8400
 
 ### 将要做的事情
 
-1.当遇到一整个Batch图片都没有目标时的应对方法
-
-2.很多地方的代码还需要精简或者修改.
+1.Faster-RCNN的代码解析流程
 
 
