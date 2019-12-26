@@ -45,18 +45,18 @@ if __name__ == "__main__":
 
     imgs = []  # 图片保存路径
     img_detections = []  # 每张图片的检测结果
-    print("\nPerforming object detection:")
-    cost_a = 0
-    cost_b = 0
+    print("\n准备开始检测:")
+    # cost_a = 0
+    # cost_b = 0
     for batch_i, (img_paths, input_imgs) in enumerate(dataloader):
         input_imgs = input_imgs.type(FloatTensor)
         with torch.no_grad():
-            a = time.time()
+            # a = time.time()
             detections = model(input_imgs)
-            b = time.time()
+            # b = time.time()
             detections = NMS(detections, import_param['conf_thres'], import_param['nms_thres'])
-            cost_a +=(time.time()-a)*1000
-            cost_b +=(time.time()-b)*1000
+            # cost_a +=(time.time()-a)*1000
+            # cost_b +=(time.time()-b)*1000
         # print(" Batch %d, 检测耗时: %.2fms NMS: %.2fms" % (batch_i, cost_a/batch_i, cost_b/batch_i))
         imgs.extend(img_paths)
         img_detections.extend(detections)
