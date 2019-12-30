@@ -34,7 +34,7 @@ win10 cuda10.1 cudnn7.6.1 python3.7 pytorch1.3 GPU:1660 CPU:i5-8400
 | ----- | ------ |  ----- | ----- |
 | YOLOv3 | 320x320 |  31ms | 760ms |
 | YOLOv3-Mobilenet | 320x320 | 20ms | 366ms |
-| YOLOv3-MobilenetV2 | 320x320 | 29 | 391 |
+| YOLOv3-MobilenetV2 | 320x320 | 29ms | 391ms |
 | YOLOv3-Tiny | 320x320 | 9.5ms | 114ms|
 | YOLOv3-Lite | 320x320 | 5.8ms | 77ms|
 |YOLOv3-Tiny-Mobilenet | 320x320 | unkwon | unkwon |
