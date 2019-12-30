@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="d588ba57-62f9-4ae2-994e-6c186d739fe9" name="Default Changelist" comment="阶段性更新">
+    <list default="true" id="d588ba57-62f9-4ae2-994e-6c186d739fe9" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/yolo_cfg/yolov3-mizone.cfg" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/conversion_weights.py" beforeDir="false" afterPath="$PROJECT_DIR$/conversion_weights.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/detect_img.py" beforeDir="false" afterPath="$PROJECT_DIR$/detect_img.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/detect_video.py" beforeDir="false" afterPath="$PROJECT_DIR$/detect_video.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/model.py" beforeDir="false" afterPath="$PROJECT_DIR$/model.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/util.py" beforeDir="false" afterPath="$PROJECT_DIR$/util.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolo_cfg/yolov3-tiny.cfg" beforeDir="false" afterPath="$PROJECT_DIR$/yolo_cfg/yolov3-tiny.cfg" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,6 +46,7 @@
   </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/train.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/conversion_weights.py" root0="SKIP_INSPECTION" />
   </component>
   <component name="IgnoredFileRootStore">
     <option name="generatedRoots">
@@ -62,7 +66,7 @@
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../Faster-RCNN_PyTorch" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/yolo_cfg" />
     <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
   </component>
   <component name="RecentsManager">
@@ -71,8 +75,8 @@
       <recent name="D:\py_pro\YOLOv3-PyTorch" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.conversion_weights">
-    <configuration name="conversion_weights" type="PythonConfigurationType" factoryName="Python" temporary="true">
+  <component name="RunManager" selected="Python.detect_img">
+    <configuration name="detect_img" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="YOLOv3-PyTorch" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -84,29 +88,6 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/conversion_weights.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="detect_img" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="YOLOv3-PyTorch" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/detect_img.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
@@ -116,7 +97,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="kmeans" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="YOLOv3-PyTorch" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -128,7 +109,28 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/test.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/kmeans.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="makeTxt" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="YOLOv3-PyTorch" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/data/wenyi" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/data/wenyi/makeTxt.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -159,7 +161,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="voc_annotation" type="PythonConfigurationType" factoryName="Python" temporary="true">
+    <configuration name="voc_annotation" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="YOLOv3-PyTorch" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -171,7 +173,6 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/data/wenyi/voc_annotation.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
@@ -183,11 +184,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.conversion_weights" />
-        <item itemvalue="Python.train" />
-        <item itemvalue="Python.test" />
         <item itemvalue="Python.detect_img" />
+        <item itemvalue="Python.kmeans" />
         <item itemvalue="Python.voc_annotation" />
+        <item itemvalue="Python.makeTxt" />
+        <item itemvalue="Python.train" />
       </list>
     </recent_temporary>
   </component>
@@ -354,7 +355,14 @@
       <option name="project" value="LOCAL" />
       <updated>1577268139606</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="阶段性更新">
+      <created>1577371929590</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1577371929590</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -385,42 +393,42 @@
     <option name="LAST_COMMIT_MESSAGE" value="阶段性更新" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="611" y="116" key="CommitChangelistDialog2" timestamp="1577371917780">
+    <state x="611" y="116" key="CommitChangelistDialog2" timestamp="1577371928323">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="611" y="116" key="CommitChangelistDialog2/0.0.1920.1040@0.0.1920.1040" timestamp="1577371917780" />
+    <state x="611" y="116" key="CommitChangelistDialog2/0.0.1920.1040@0.0.1920.1040" timestamp="1577371928323" />
     <state x="740" y="278" key="FileChooserDialogImpl" timestamp="1577268470734">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="740" y="278" key="FileChooserDialogImpl/0.0.1920.1040@0.0.1920.1040" timestamp="1577268470734" />
-    <state width="1899" height="242" key="GridCell.Tab.0.bottom" timestamp="1577355342198">
+    <state width="1899" height="298" key="GridCell.Tab.0.bottom" timestamp="1577678064419">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1899" height="242" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1577355342198" />
-    <state width="1899" height="242" key="GridCell.Tab.0.center" timestamp="1577355342198">
+    <state width="1899" height="298" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1577678064419" />
+    <state width="1899" height="298" key="GridCell.Tab.0.center" timestamp="1577678064419">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1899" height="242" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1577355342198" />
-    <state width="1899" height="242" key="GridCell.Tab.0.left" timestamp="1577355342198">
+    <state width="1899" height="298" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1577678064419" />
+    <state width="1899" height="298" key="GridCell.Tab.0.left" timestamp="1577678064419">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1899" height="242" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1577355342198" />
-    <state width="1899" height="242" key="GridCell.Tab.0.right" timestamp="1577355342198">
+    <state width="1899" height="298" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1577678064419" />
+    <state width="1899" height="298" key="GridCell.Tab.0.right" timestamp="1577678064419">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state width="1899" height="242" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1577355342198" />
+    <state width="1899" height="298" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1577678064419" />
     <state x="736" y="121" key="SettingsEditor" timestamp="1577230239599">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="736" y="121" key="SettingsEditor/0.0.1920.1040@0.0.1920.1040" timestamp="1577230239599" />
-    <state x="552" y="256" key="Vcs.Push.Dialog.v2" timestamp="1577268146669">
+    <state x="552" y="256" key="Vcs.Push.Dialog.v2" timestamp="1577371935983">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="552" y="256" key="Vcs.Push.Dialog.v2/0.0.1920.1040@0.0.1920.1040" timestamp="1577268146669" />
-    <state x="92" y="92" width="1736" height="856" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1577352006016">
+    <state x="552" y="256" key="Vcs.Push.Dialog.v2/0.0.1920.1040@0.0.1920.1040" timestamp="1577371935983" />
+    <state x="92" y="92" width="1736" height="856" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1577443183614">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="92" y="92" width="1736" height="856" key="com.intellij.history.integration.ui.views.FileHistoryDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1577352006016" />
+    <state x="92" y="92" width="1736" height="856" key="com.intellij.history.integration.ui.views.FileHistoryDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1577443183614" />
     <state x="652" y="347" key="com.intellij.ide.util.TipDialog" timestamp="1577229591395">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
@@ -429,9 +437,9 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="647" y="275" width="626" height="490" key="find.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1577331262633" />
-    <state x="623" y="225" width="672" height="678" key="search.everywhere.popup" timestamp="1577339126613">
+    <state x="623" y="225" width="672" height="678" key="search.everywhere.popup" timestamp="1577423725621">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="623" y="225" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1577339126613" />
+    <state x="623" y="225" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1577423725621" />
   </component>
 </project>

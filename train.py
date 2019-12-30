@@ -12,7 +12,7 @@ from torchsummary import summary
 
 if __name__ == "__main__":
     map_name = 'wenyi'
-    model_name = 'yolov3-mobile'
+    model_name = 'yolov3-tiny'
     import_param = {
         'epochs':100,
         'batch_size':16,
@@ -21,17 +21,17 @@ if __name__ == "__main__":
         'nms_thres':0.4,
         'evaluation_interval': 1,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\'+model_name+'.cfg',
-        'weights':'D:\py_pro\YOLOv3-PyTorch\weights\\'+map_name+'\\yolov3-lite_ep99-map66.12-loss37.64719.weights',
+        'weights':'D:\py_pro\YOLOv3-PyTorch\weights\\'+map_name+'\\yolov3-t_ep95-map80.90-loss0.49322.weights',
         'class_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\dnf_classes.txt',
         'train_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\train.txt',
         'val_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\val.txt',
-        'pretrained':False
+        'pretrained':True
     }
     print(import_param,'\n',"载入网络...")
     model = Mainnet(import_param['cfg_path']).cuda()
     if import_param['pretrained']:
-        model.load_darknet_weights(import_param['weights'])
-        # model.load_state_dict(torch.load(import_param['weights']))
+        # model.load_darknet_weights(import_param['weights'])
+        model.load_state_dict(torch.load(import_param['weights']))
     else:
         # 随机初始化权重,会对模型进行高斯随机初始化
         model.apply(weights_init_normal)

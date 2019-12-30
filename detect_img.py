@@ -13,19 +13,19 @@ import cv2
 
 if __name__ == "__main__":
     map_name = 'wenyi'
-    model_name = 'yolov3'
+    model_name = 'yolov3-mobileV2'
     import_param = {
         'batch_size': 1,
         'conf_thres': 0.8,
         'nms_thres': 0.4,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep87-map70.33-loss0.06912.weights',
+        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3-mobileV2_ep60-map80.21-loss0.03100.weights',
         'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
-        'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test_wenyi\\',
+        'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test\\',
     }
     print(import_param, '\n', "载入网络...")
     # 在GPU上加载模型
-    model = Mainnet(import_param['cfg_path']).cuda()
+    model = Mainnet(import_param['cfg_path'])
     model.load_state_dict(torch.load(import_param['weights_path']))
     # 非训练阶段需要使用eval()模式
     model.eval()
@@ -46,18 +46,20 @@ if __name__ == "__main__":
     imgs = []  # 图片保存路径
     img_detections = []  # 每张图片的检测结果
     print("\n准备开始检测:")
-    # cost_a = 0
-    # cost_b = 0
+    cost_a = 0
+    cost_b = 0
     for batch_i, (img_paths, input_imgs) in enumerate(dataloader):
         input_imgs = input_imgs.type(FloatTensor)
         with torch.no_grad():
-            # a = time.time()
+            a = time.time()
             detections = model(input_imgs)
-            # b = time.time()
+            b = time.time()
             detections = NMS(detections, import_param['conf_thres'], import_param['nms_thres'])
-            # cost_a +=(time.time()-a)*1000
-            # cost_b +=(time.time()-b)*1000
-        # print(" Batch %d, 检测耗时: %.2fms NMS: %.2fms" % (batch_i, cost_a/batch_i, cost_b/batch_i))
+        if batch_i == 0:
+            continue
+        cost_a +=(time.time()-a)*1000
+        cost_b +=(time.time()-b)*1000
+        print(" Batch %d, 检测耗时: %.2fms NMS: %.2fms" % (batch_i, cost_a/batch_i, cost_b/batch_i))
         imgs.extend(img_paths)
         img_detections.extend(detections)
 

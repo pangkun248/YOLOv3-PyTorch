@@ -33,8 +33,8 @@ win10 cuda10.1 cudnn7.6.1 python3.7 pytorch1.3 GPU:1660 CPU:i5-8400
 | 模型名称 | 输入尺寸| GPU | CPU |
 | ----- | ------ |  ----- | ----- |
 | YOLOv3 | 320x320 |  31ms | 760ms |
-| YOLOv3-Mobilenet | 320x320 | unkwon | 366ms |
-| YOLOv3-MobilenetV2 | 320x320 | unkwon | unkwon |
+| YOLOv3-Mobilenet | 320x320 | 20ms | 366ms |
+| YOLOv3-MobilenetV2 | 320x320 | 29 | 391 |
 | YOLOv3-Tiny | 320x320 | 9.5ms | 114ms|
 | YOLOv3-Lite | 320x320 | 5.8ms | 77ms|
 |YOLOv3-Tiny-Mobilenet | 320x320 | unkwon | unkwon |
@@ -43,5 +43,7 @@ win10 cuda10.1 cudnn7.6.1 python3.7 pytorch1.3 GPU:1660 CPU:i5-8400
 ### 将要做的事情
 
 1.Faster-RCNN的代码解析流程
+2.YOLOv3-MobilenetV2的结构有些问题导致测试时和YOLOv3消耗几乎一致的时间.但是我暂时可能不会解决这个问题,
+一是因为MobileNetV2相比较V1精度与速度方面提升不是很大,二是因为手里的事情太多了.
 
 

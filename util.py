@@ -5,7 +5,7 @@ import numpy as np
 import tqdm
 
 
-FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+FloatTensor = torch.cuda.FloatTensor if False else torch.FloatTensor
 
 def xywh2xyxy(x):
     y = x.new(x.shape)
