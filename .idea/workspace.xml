@@ -2,15 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="d588ba57-62f9-4ae2-994e-6c186d739fe9" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/yolo_cfg/yolov3-mizone.cfg" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/conversion_weights.py" beforeDir="false" afterPath="$PROJECT_DIR$/conversion_weights.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/detect_img.py" beforeDir="false" afterPath="$PROJECT_DIR$/detect_img.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model.py" beforeDir="false" afterPath="$PROJECT_DIR$/model.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/util.py" beforeDir="false" afterPath="$PROJECT_DIR$/util.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/yolo_cfg/yolov3-tiny.cfg" beforeDir="false" afterPath="$PROJECT_DIR$/yolo_cfg/yolov3-tiny.cfg" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -362,7 +355,21 @@
       <option name="project" value="LOCAL" />
       <updated>1577371929590</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="阶段性更新">
+      <created>1577678244259</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1577678244260</updated>
+    </task>
+    <task id="LOCAL-00015" summary="阶段性更新">
+      <created>1577678299546</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1577678299546</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -393,10 +400,10 @@
     <option name="LAST_COMMIT_MESSAGE" value="阶段性更新" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="611" y="116" key="CommitChangelistDialog2" timestamp="1577678242739">
+    <state x="611" y="116" key="CommitChangelistDialog2" timestamp="1577678298526">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="611" y="116" key="CommitChangelistDialog2/0.0.1920.1040@0.0.1920.1040" timestamp="1577678242739" />
+    <state x="611" y="116" key="CommitChangelistDialog2/0.0.1920.1040@0.0.1920.1040" timestamp="1577678298526" />
     <state x="740" y="278" key="FileChooserDialogImpl" timestamp="1577268470734">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
@@ -421,10 +428,10 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="736" y="121" key="SettingsEditor/0.0.1920.1040@0.0.1920.1040" timestamp="1577230239599" />
-    <state x="552" y="256" key="Vcs.Push.Dialog.v2" timestamp="1577678249432">
+    <state x="552" y="256" key="Vcs.Push.Dialog.v2" timestamp="1577678304431">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="552" y="256" key="Vcs.Push.Dialog.v2/0.0.1920.1040@0.0.1920.1040" timestamp="1577678249432" />
+    <state x="552" y="256" key="Vcs.Push.Dialog.v2/0.0.1920.1040@0.0.1920.1040" timestamp="1577678304431" />
     <state x="92" y="92" width="1736" height="856" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1577443183614">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
