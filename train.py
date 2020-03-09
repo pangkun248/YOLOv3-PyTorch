@@ -1,4 +1,3 @@
-from __future__ import division
 import time
 from util import *
 import argparse
@@ -11,11 +10,11 @@ from terminaltables import AsciiTable
 from torchsummary import summary
 
 if __name__ == "__main__":
-    map_name = 'wenyi'
-    model_name = 'yolov3-tiny'
+    map_name = 'mouse'
+    model_name = 'yolov3-lite'
     import_param = {
         'epochs':100,
-        'batch_size':16,
+        'batch_size':8,
         'conf_thres':0.5,
         'iou_thres':0.5,    # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一box不能被算作tp两次
         'nms_thres':0.4,
@@ -25,9 +24,10 @@ if __name__ == "__main__":
         'class_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\dnf_classes.txt',
         'train_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\train.txt',
         'val_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\val.txt',
-        'pretrained':True
+        'pretrained':False
     }
-    print(import_param,'\n',"载入网络...")
+    for k,v in import_param.items():
+        print(k,':',v)
     model = Mainnet(import_param['cfg_path']).cuda()
     if import_param['pretrained']:
         # model.load_darknet_weights(import_param['weights'])
@@ -74,27 +74,22 @@ if __name__ == "__main__":
     class_names = load_classes(import_param['class_path'])  # 加载所有种类名称
     for epoch in range(1, import_param['epochs']):
         lr *= 0.98
-        # 使用Adam优化器, 不懂得可以参考https://www.sohu.com/a/149921578_610300
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-        model.train()  # 训练的时候需要这一步,如果是测试的时候那就改成model.eval()
+        model.train()
         for batch_i, (img_path, imgs, targets) in enumerate(train_dataloader):
-            # batches_done = len(train_dataloader) * epoch + batch_i
             imgs = imgs.cuda()
             targets = targets.cuda()
             loss, outputs = model(imgs, targets)
             loss.backward()
-            # if batches_done % args.gradient_accumulations:
             optimizer.step()
             optimizer.zero_grad()
 
             # ----------------
             #   日志处理相关
             # ----------------
-
             # 获取每个yolo层的损失相关数据
             batch_metrics = [yolo.metrics for yolo in model.yolo_layers]
-            if targets.size(0):
+            if targets.size(0): # 这是在整个batch中有标注目标情况下
                 # 打印当前训练状态的各项损失值 这里我省略了几个指标没有输出,
                 # 因为我感觉以它们的数据表现来评判模型性能的话不是那么的清楚直观.需要的可以自行加上
                 precision = 0
@@ -110,10 +105,8 @@ if __name__ == "__main__":
                     # cls_acc += batch_metric["cls_acc"]
                     # conf_obj += batch_metric["conf_obj"]
                     # conf_noobj += batch_metric["conf_noobj"]
-                print(
-                    "[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, precision: %.5f, recall_50: %.5f, recall_75: %.5f]"
-                    % (
-                        epoch,
+                print("[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, precision: %.5f, recall_50: %.5f, recall_75: %.5f]" %
+                      ( epoch,
                         import_param['epochs'],
                         batch_i,
                         len(train_dataloader),
@@ -124,23 +117,15 @@ if __name__ == "__main__":
                         # cls_acc / 3,
                         # conf_obj / 3,
                         # conf_noobj / 3,
+                        )
                     )
-                )
             else:
                 conf_noobj = 0
                 for batch_metric in batch_metrics:
                     conf_noobj += batch_metric["conf_noobj"]
-                print(
-                    "[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, conf_noobj: %.5f, 该batch无标注目标]"
-                    % (
-                        epoch,
-                        import_param['epochs'],
-                        batch_i,
-                        len(train_dataloader),
-                        loss.item(),
-                        conf_noobj / 3,
-                    )
-                )
+                print("[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, conf_noobj: %.5f, 该batch无标注目标]" %
+                      ( epoch, import_param['epochs'], batch_i, len(train_dataloader), loss.item(), conf_noobj / 3,)
+                     )
         # 每epoch输出一次详细loss
         log_str = "\n [Epoch %d/%d] " % (epoch, import_param['epochs'])
         log_str += " Total loss:" + str(loss.item()) + '\n'
@@ -176,9 +161,6 @@ if __name__ == "__main__":
             vis.line(X=torch.tensor([epoch]), Y=torch.tensor([AP.mean()]), win='mAP', update='append',
                      opts={'title': 'mAP','linecolor':np.array([[25, 25, 100]])})
 
-            # mAP_path = 'D:\py_pro\YOLOv3-PyTorch\mAP\\'+map_name+'-'+model_name+'.txt'
-            # with open(mAP_path,'a+') as f:
-            #     f.write(str(epoch)+' '+ str(AP.mean())+'\n')
             # 输出 class APs 和 mAP
             ap_table = [["Index", "Class name", "Precision", "Recall", "AP", "F1-score"]]
             for i, c in enumerate(ap_class):
@@ -189,5 +171,5 @@ if __name__ == "__main__":
             if AP.mean() > mAP:
                 mAP = AP.mean()
                 torch.save(model.state_dict(),'weights\\'+map_name+'\\'+model_name+'_ep' + str(epoch) + '-map%.2f' % (
-                        AP.mean() * 100) + '-loss%.5f' % loss.item() + '.weights')
+                        AP.mean() * 100) + '-loss%.5f' % loss.item() + '.pt')
     torch.cuda.empty_cache()

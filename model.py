@@ -1,5 +1,3 @@
-from __future__ import division
-
 import torch.nn as nn
 from util import *
 import torch
@@ -176,7 +174,7 @@ class YOLOLayer(nn.Module):
         # 我这里使用的是softmax分类方法,和原作者sigmoid不同的是,我自己训练的数据集中没有狗,哈士奇或者人,女人这种类别从属现象发生
         # 我自己遇到的都是 飞机 汽车 大炮 人 狗...等等互斥的类别.所以在此进行了更改
         pred_cls = torch.softmax(prediction[..., 5:], dim=1)  # Cls pred.
-        # 下面这些数据时和yolo层绑定在一起的,所以只要yolo层固定了这些数据也就固定了.不然每次都要临时创建需要额外耗费 5 ms
+        # 下面这些数据时和yolo层绑定在一起的,所以只要yolo层固定了这些数据也就固定了.不然每次都要临时创建需要额外耗费5ms左右
         if grid_size != self.grid_size:
             self.grid_size = grid_size
             g = self.grid_size
@@ -297,8 +295,8 @@ class Mainnet(nn.Module):
         # 获取模型参数及模型结构
         self.net_info, self.module_list = create_modules(self.blocks)
         self.yolo_layers = [layer[0] for layer in self.module_list if hasattr(layer[0], "metrics")]
-        self.seen = 0
-        self.header_info = np.array([0, 0, 0, self.seen, 0], dtype=np.int32)
+        # self.seen = 0
+        # self.header_info = np.array([0, 0, 0, self.seen, 0], dtype=np.int32)
 
     def forward(self, x, targets=None):
         # 获取前向传播的网络结构,第一层是net参数层
@@ -339,57 +337,3 @@ class Mainnet(nn.Module):
         # 需要把三种尺度下的所有的anchors(3*(52*52+26*26+13*13))预测结果合并到一起.
         yolo_outputs = torch.cat(yolo_outputs, 1).detach().cpu()
         return yolo_outputs if targets is None else (loss, yolo_outputs)
-
-
-    def load_darknet_weights(self, weights_path):
-        """Parses and loads the weights stored in 'weights_path'"""
-
-        # Open the weights file
-        with open(weights_path, "rb") as f:
-            header = np.fromfile(f, dtype=np.int32, count=5)  # First five are header values
-            self.header_info = header  # Needed to write header when saving weights
-            self.seen = header[3]  # number of images seen during training
-            weights = np.fromfile(f, dtype=np.float32)  # The rest are weights
-        # Establish cutoff for loading backbone weights
-        cutoff = None
-        if "darknet53.conv.74" in weights_path:
-            cutoff = 75
-
-        ptr = 0
-        for i, (module_def, module) in enumerate(zip(self.blocks, self.module_list)):
-            if i == cutoff:
-                break
-            if module_def["type"] == "convolutional":
-                conv_layer = module[0]
-                num_w = conv_layer.weight.numel()
-                conv_w = torch.from_numpy(weights[ptr: ptr + num_w]).reshape_as(conv_layer.weight)
-                conv_layer.weight.detach().copy_(conv_w)
-                ptr += num_w
-                if module_def["batch_normalize"]:
-                    # 加载 bn层的  weights, bias, running_mean, running_var等参数
-                    bn_layer = module[1]
-                    num_b = bn_layer.bias.numel()
-                    # Weight
-                    bn_w = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.weight)
-                    bn_layer.weight.detach().copy_(bn_w)
-                    ptr += num_b
-                    # Bias
-                    bn_b = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.bias)
-                    bn_layer.bias.detach().copy_(bn_b)
-                    ptr += num_b
-                    # Running Mean
-                    bn_rm = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.running_mean)
-                    bn_layer.running_mean.detach().copy_(bn_rm)
-                    ptr += num_b
-                    # Running Var
-                    bn_rv = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(bn_layer.running_var)
-                    bn_layer.running_var.detach().copy_(bn_rv)
-                    ptr += num_b
-                else:
-                    # 加载conv层的bias参数
-                    num_b = conv_layer.bias.numel()
-                    conv_b = torch.from_numpy(weights[ptr: ptr + num_b]).reshape_as(conv_layer.bias)
-                    conv_layer.bias.detach().copy_(conv_b)
-                    ptr += num_b
-
-

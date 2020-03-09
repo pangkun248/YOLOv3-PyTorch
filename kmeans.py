@@ -58,7 +58,7 @@ class YOLO_Kmeans:
         return clusters
 
     def result2txt(self, data):
-        f = open("D:\py_pro\YOLOv3-PyTorch\data\wenyi\yolo_anchors.txt", 'w')
+        f = open("D:\py_pro\YOLOv3-PyTorch\data\mouse\yolo_anchors.txt", 'w')
         row = np.shape(data)[0]
         for i in range(row):
             if i == 0:
@@ -88,14 +88,15 @@ class YOLO_Kmeans:
         all_boxes = self.txt2boxes()
         result = self.kmeans(all_boxes, k=self.cluster_number)
         result = result[np.lexsort(result.T[0, None])]
-        # self.result2txt(result)
+        self.result2txt(result)
         print("K anchors:\n {}".format(result))
         print("Accuracy: {:.2f}%".format(
             self.avg_iou(all_boxes, result) * 100))
 
+
 # 此文件为生成YOLOv3中anchors所用的k-means聚类文件
 if __name__ == "__main__":
-    cluster_number = 5
-    filename = "D:\py_pro\YOLOv3-PyTorch\data\wenyi\\train.txt"
+    cluster_number = 3
+    filename = "D:\py_pro\YOLOv3-PyTorch\data\mouse\\train.txt"
     kmeans = YOLO_Kmeans(cluster_number, filename)
     kmeans.txt2clusters()

@@ -1,11 +1,9 @@
-from __future__ import division
-
 import torch
 import numpy as np
-import tqdm
+from tqdm import tqdm
 
 
-FloatTensor = torch.cuda.FloatTensor if False else torch.FloatTensor
+FloatTensor = torch.cuda.FloatTensor if True else torch.FloatTensor
 
 def xywh2xyxy(x):
     y = x.new(x.shape)
@@ -55,7 +53,7 @@ def NMS(prediction, conf_thres, nms_thres):
     9.进行取反操作,把那些没有参与合并的pred_box赋值给原先的image_pred然后重复以上步骤,直到image_pred为空为止
     10.最后循环结束将列表中的pred_box给stack到一个张量上
     然后把这个张量添加到一个ouput列表中,最后返回一个batch_size,n,7  n是指最终一张图片中预测的物体数量
-    返回数据形状:(x, y, w, h, object_conf, class_score, class_pred)
+    返回数据形状:(x1, y1, x2, y2, object_conf, class_score, class_pred)
 
     :param prediction: NMS方法需要的数据为(batch_size,10647,classes_num+5)经过YOLOv3最后三层合并后的数据
     :param conf_thres: 目标置信度阈值为0.5 超过则认为该pred_box内含有目标
@@ -115,9 +113,9 @@ def NMS(prediction, conf_thres, nms_thres):
             # 注意！如果detections中出现了一些奇怪的box,像上面说的那样,那么这里的invalid就全部为False,
             # 即detections还是等于其本身.不会减少任何pred_box.就陷入无限循环了
             detections = detections[~large_overlap]
+        # 如果某张图片中有检测目标则合并所有的检测目标 否则默认为None
         if keep_boxes:
             output[image_i] = torch.stack(keep_boxes)
-        # print((time.time() - a) * 1000)
     return output
 
 
@@ -152,7 +150,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls):
     unique_classes = np.unique(target_cls)
 
     ap, p, r = [], [], []
-    for c in tqdm.tqdm(unique_classes, desc="Computing AP"):
+    for c in tqdm(unique_classes, desc="Computing AP"):
         i = pred_cls == c
         # c类下实际目标的数量
         n_gt = (target_cls == c).sum()
@@ -192,14 +190,14 @@ def get_batch_statistics(outputs, targets, iou_threshold):
         # 这种情况下就是一张图片中没有一个pre_box的目标置信度大于conf_thres,详情见NMS方法前三行代码
         if outputs[batch_i] is None:
             continue
-        # 现在的output是经过NMS筛选的数据,即是最终预测的排过序的pred_box shape  -> len(outputs) == batch_size
+        # 现在的output是经过NMS筛选的数据,即是最终预测的排过序的pred_box.shape  -> len(outputs) == batch_size
         # output[batch_i] -> [n*(x, y, x, y, object_conf, class_score, class_index)] n是指一张图片中经过NMS筛选后的pred_box数量
         output = outputs[batch_i]
         pred_boxes = output[:, :4]
         pred_scores = output[:, 4]
         class_index = output[:, -1]
         true_positives = torch.zeros(pred_boxes.shape[0])
-        # target_id_boxes[i] -> [n,5]  n->真实目标数 5->[target_labels, x, y, w, h]
+        # target_id_boxes[i] -> [n,5]  n->一张图片中target_box数量 5->[target_labels, x, y, w, h]
         # 为了让targets中的图片索引与outputs中的对齐,即都是同一张图片的数据,一个预测数据一个真实数据
         target_id_boxes = targets[targets[:, 0] == batch_i][:, 1:]
         # 如果图片中没有标注物体则让labels为空
@@ -216,12 +214,12 @@ def get_batch_statistics(outputs, targets, iou_threshold):
                 # 如果pred_box的class不在target_boxes的class中则跳出
                 if pred_label not in target_labels:
                     continue
-                # 这里的box_index是某一个pred_box与所有target_box中最大iou的target_box的索引,主要是防止某一个target_box被两次预测到
+                # 这里的box_index是所有pred_box与某一个target_box的最大iou的pred_box的索引,主要是防止某一个pred_box预测两个target_box
                 iou, box_index = compute_iou(pred_box.unsqueeze(0), target_boxes,xywh=False).max(0)
                 # 这里对true_positives的计算和作者代码有些不一样,因为我觉得即使是两个不同label的物体iou也可能大于阈值
                 # 详情见https://github.com/eriklindernoren/PyTorch-YOLOv3/issues/233
                 # 判断条件1.iou阈值
-                #        2.与pred_box最大iou的target_box的索引是否出现两次,如果出现两次则代表某一target_box被预测两次,这不能算TP
+                #        2.与target_box最大iou的pred_box的索引是否出现两次,如果出现两次则代表某一pred_box预测两次最大IOU,这不能算TP
                 #        3.pred_box的class是否与target_box的class一致
                 if iou >= iou_threshold and box_index not in detected_boxes and pred_label == target_labels[box_index]:
                     true_positives[pred_i] = 1
@@ -235,9 +233,8 @@ def compute_iou(box1, box2,xywh=True):
     """
     返回box1和box2的ious  box1,box2 -> xywh
     box1:box2可以是1:N 可以是1:1 可以是M:1 但是不支持N:M
+    关于如何计算iou的,各位可以自己在草稿纸上画一个有部分重合的两块矩形,然后再标上相应的x,y坐标.结合下面的操作步骤,即可一目了然
     """
-    # 关于如何计算iou的,各位可以自己在草稿纸上画一个有部分重合的两块矩形,然后再标上相应的x,y坐标
-    # 结合下面的操作步骤,即可一目了然
     if xywh:
         b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
         b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
@@ -246,14 +243,14 @@ def compute_iou(box1, box2,xywh=True):
     else:
         b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
         b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
+
     inter_rect_x1 = torch.max(b1_x1, b2_x1)
     inter_rect_y1 = torch.max(b1_y1, b2_y1)
     inter_rect_x2 = torch.min(b1_x2, b2_x2)
     inter_rect_y2 = torch.min(b1_y2, b2_y2)
 
     # 公共区域(交集)
-    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * torch.clamp(inter_rect_y2 - inter_rect_y1 + 1,
-        min=0)
+    inter_area = torch.clamp(inter_rect_x2-inter_rect_x1+1, min=0) * torch.clamp(inter_rect_y2-inter_rect_y1+1, min=0)
     # 所有区域(并集)
     b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
     b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
@@ -263,6 +260,7 @@ def compute_iou(box1, box2,xywh=True):
 
 
 def load_classes(namesfile):
+    # 加载各个类的名称
     fp = open(namesfile, "r")
     names = fp.read().split("\n")
     return names
@@ -326,17 +324,17 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres, grid_size
     # gi和gj代表target_xy所在grid的左上角坐标,这个long()方法可以理解为向下取整操作
     gi, gj = target_xy.long().t()
     # 在obj_mask中,那些有target_boxes的的区域都设置为1.同理在noobj_mask中,有target_boxes的的区域都设置为0
-    # obj_mask第一维度最大本应为8,但是这里不出意外的话应该会超过8,因为target_box会在同一张图片中有多个.
+    # obj_mask第一维度最大本应为8(如果batch_size=8),但是这里不出意外的话应该会超过8,因为target_box会在同一张图片中有多个.
     # 这里obj_mask中的值如何才能算作1呢,就是target_boxes的坐标向下取整后和哪个grid坐标相同,target_boxes就属于那个grid里.
-    # anchor这里也是一样target_boxes的长宽和哪个尺寸的anchor的iou最接近就属于哪个anchor.
-    # 以及这个target_boxes原本属于哪张图片的,最后就由这四个值决定的.noobj_mask同理
+    # anchor这里也是一样target_boxes的长宽和哪个尺寸的anchor的iou最接近就属于哪个anchor(best_ind).
+    # 以及这个target_boxes原本属于哪张图片的(i_in_batch),最后就由这四个值决定的.noobj_mask同理
     obj_mask[i_in_batch, best_ind, gj, gi] = 1
     noobj_mask[i_in_batch, best_ind, gj, gi] = 0
     # 在noobj_mask中除了某些grid含有target_box并且和target_box有最佳iou的区域为0,那些iou大于一定阈值的也会设为 0
     # anchors_ious为某个target_box和三个尺寸下的anchor的iou值 ious.t() shape -> (len(target),3)
     # 这里相当于有意减少一些负样本吧,这在正负样本极不平衡的条件下也是个好处
     # 那为什么不顺便也在obj_mask中设为 1,因为这会影响到后面一系列loss以及指标的计算.
-    # 让Loss虚假的降低,mAP虚假的提升,(甚至在单个YOLO层中验证集上mAP可能大于1)实际上并没有
+    # 让Loss虚假的降低,mAP虚假的提升(甚至在单个YOLO层中验证集上mAP可能大于1)实际上并没有
     # 在YOLOv3中每个YOLO检测层中正样本是唯一的(如果对于标准YOLOv3来说一个正样本应该出现了三次)
     for i, anchor_ious in enumerate(ious.t()):
         noobj_mask[i_in_batch[i], anchor_ious > ignore_thres, gj[i], gi[i]] = 0
@@ -349,8 +347,8 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres, grid_size
     # 这是一个标签掩膜,有target的那一类target_label为1
     tcls[i_in_batch, best_ind, gj, gi, target_labels] = 1
     # pred_cls[i_in_batch, best_ind, gj, gi] 是一个 (len(target),num_class)的数据.
-    # 即网络在target_box位置预测的每个种类(16)得概率值  shape  -> len(target),16
-    # pred_cls[i_in_batch, best_ind, gj, gi].argmax(-1) 代表网络在target_box位置预测的最大概率的类的索引(即max_class_index) (len(target),)
+    # 即网络在target_box位置预测的所有种类(16)的概率值  shape  -> len(target),16
+    # pred_cls[i_in_batch, best_ind, gj, gi].argmax(-1) 代表网络在target_box位置预测的最大概率的类的索引(即max_class_index)
     class_mask[i_in_batch, best_ind, gj, gi] = (pred_cls[i_in_batch, best_ind, gj, gi].argmax(-1) == target_labels).float()
     # pred_boxes[i_in_batch, best_ind, gj, gi]为(len(target),4)的tensor,这里只是计算网络在target_boxes位置预测的xywh与真实的xywh的iou
     iou_scores[i_in_batch, best_ind, gj, gi] = compute_iou(pred_boxes[i_in_batch, best_ind, gj, gi], target_boxes, xywh=True)

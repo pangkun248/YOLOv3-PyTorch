@@ -1,8 +1,6 @@
 import glob
 import random
 import os
-import sys
-import time
 import numpy as np
 from PIL import Image
 import torch
@@ -49,7 +47,6 @@ class ImageFolder(Dataset):
         img, _ = pad_to_square(img, 0)
         # Resize
         img = resize(img, self.img_size)
-
         return img_path, img
 
     def __len__(self):
@@ -68,9 +65,8 @@ class ListDataset(Dataset):
             self.img_files = file.readlines()
         # 根据图片的路径得到 label 的路径, label 的存储格式为一个图片对应一个.txt文件
         # 文件的每一行代表了该图片的 box 信息, 其内容为: class_id, x, y, w, h (xywh都是用小数形式存储的,相对坐标)
-        self.label_files = [path.replace('JPGImages', 'labels').replace('.png', '.txt').replace('.jpg', '.txt') for path
-                            in
-                            self.img_files]
+        self.label_files = [path.replace('JPGImages', 'labels').replace('.png', '.txt').replace('.jpg', '.txt')
+                            for path in self.img_files]
         self.reso = reso  # 获取图片目标大小, 之后会将图片放缩到此大小, 并相应调整box的数据
         self.batch_count = 0
 
@@ -81,7 +77,6 @@ class ListDataset(Dataset):
         img = transforms.ToTensor()(Image.open(img_path))
 
         img, pad = pad_to_square(img, 0)
-        # img变成一个正方形图片了,padded_h, padded_w=max(h, w),多出部分已被填充128相素值
         _, padded_h, padded_w = img.shape
 
         # 获取图片对应的 label 文件的路径
@@ -135,6 +130,3 @@ class ListDataset(Dataset):
         imgs = torch.stack([resize(img, self.reso) for img in imgs])
         self.batch_count += 1
         return img_path, imgs, targets
-
-    def __len__(self):
-        return len(self.img_files)

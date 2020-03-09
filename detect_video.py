@@ -1,5 +1,3 @@
-from __future__ import division
-
 from model import *
 from util import *
 from datasets import *
@@ -12,34 +10,32 @@ import cv2
 
 
 if __name__ == "__main__":
-    map_name = 'wenyi'
-    model_name = 'yolov3'
+    map_name = 'mouse'
+    model_name = 'yolov3-lite'
     import_param = {
         'batch_size': 1,
         'conf_thres': 0.8,
         'iou_thres': 0.5,
         'nms_thres': 0.4,
-        'video_in': "D:\BaiduNetdiskDownload\wenyi.avi",
-        'video_out': 'wenyi_out.avi',
+        'video_in': "D:\py_pro\YOLOv3-PyTorch\lastest.mp4",
+        'video_out': 'short_out.mp4',
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep3-map13.07-loss4.51528.weights',
+        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3-lite_ep49-map97.88-loss43.78128.weights',
         'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
-        'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test\\',
     }
-
-    print(import_param, '\n', "载入网络...")
+    for k, v in import_param.items():
+        print(k, ':', v)
     os.makedirs("output", exist_ok=True)
     # 在GPU上加载模型
     model = Mainnet(import_param['cfg_path']).cuda()
     if import_param['weights_path'].endswith(".weights"):
         # 在模型上加载权重
-        model.load_darknet_weights(import_param['weights_path'])
-        # model.load_state_dict(torch.load(import_param['weights_path']))
+        # model.load_darknet_weights(import_param['weights_path'])
+        model.load_state_dict(torch.load(import_param['weights_path']))
     else:
         print('无检测模型')
     # 非训练阶段需要使用eval()模式
     model.eval()
-
     # 加载类名
     classes = load_classes(import_param['class_path'])  # Extracts class labels from file
     # 为每个类名配置不同的颜色
@@ -56,7 +52,7 @@ if __name__ == "__main__":
     while True:
         return_value, frame = vid.read()
         if return_value:
-            out = cv2.VideoWriter(import_param['video_out'], video_FourCC, video_fps, video_size)
+            # out = cv2.VideoWriter(import_param['video_out'], video_FourCC, video_fps, video_size)
             h, w, c = frame.shape
             PIL_img = Image.fromarray(frame[:, :, ::-1])
             tensor_img = transforms.ToTensor()(PIL_img)
@@ -66,7 +62,7 @@ if __name__ == "__main__":
             start_time = time.time()
             with torch.no_grad():
                 detections = model(img)
-                detections = NMS(detections, import_param['conf_thres'], import_param['nms_thres'])
+                detections = NMS(detections, import_param['conf_thres'], import_param['nms_thres'])[0]
             end_time = time.time()
             # FPS计算方式比较简单
             fps = 'FPS:%.2f' % (1/(end_time-start_time))
@@ -74,12 +70,9 @@ if __name__ == "__main__":
             font = ImageFont.truetype(font='font/FiraMono-Medium.otf',
                                       size=np.floor(3e-2 * h + 0.5).astype('int32'))
             # 目标框的厚度
-            thickness = (w + h) // 300
+            thickness = (w + h) // 900
             draw = ImageDraw.Draw(PIL_img)
-            print(detections[0])
-            if detections[0]:
-                # 在画图阶段需要转换一下坐标形式
-                detections = xywh2xyxy(detections[0])
+            if (detections is not None):
                 # 先将在320*320标准下的xyxy坐标转换成max(600,800)下的坐标 再将x向或y向坐标减一下就行
                 detections[:, :4] *= (max(h, w) / int(model.net_info['height']))
                 if max(h - w, 0) == 0:
@@ -101,6 +94,6 @@ if __name__ == "__main__":
             cv_img = np.array(PIL_img)[..., ::-1]
             cv2.imshow('result', cv_img)
             # cv2.waitKey(300)
-            out.write(cv_img)
+            # out.write(cv_img)
             cv2.waitKey(1)
 

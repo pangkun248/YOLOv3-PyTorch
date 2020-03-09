@@ -1,13 +1,10 @@
-from __future__ import division
-
 from model import *
 from util import *
 from datasets import *
-import time
-import argparse
 import tqdm
 import torch
 from torch.utils.data import DataLoader
+from terminaltables import AsciiTable
 
 
 def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size):
@@ -22,9 +19,11 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
     for batch_i, (_, imgs, targets) in enumerate(tqdm.tqdm(dataloader, desc="Detecting objects")):
         labels += targets[:, 1].numpy().tolist()
         # 这里的targets中xywh还是以(0,1)之间的相对坐标,在计算TP时tensor在cpu上计算的会更快
-        targets[:, 2:] = xywh2xyxy(targets[:, 2:]*320)
+        targets[:, 2:] = xywh2xyxy(targets[:, 2:]*int(model.net_info["height"]))
         imgs = imgs.cuda()
-
+        # 事实上如果只设置model.eval()足以获得预期的效果。但是如果加上with torch.no_grad()将另外节省一些内存
+        # eval只会改变BN与drop的行为方式,而no_grad则会节约显存,因为它不会存储任何中间张量
+        # 而在eval模式下,bn使用的是保存的统计信息而不是来自每个batch的数据
         with torch.no_grad():
             outputs = model(imgs)
             # 这里的outputs由于在网络中预测时的第一数据形式时以stride为单位的xywh坐标形式
@@ -56,7 +55,8 @@ if __name__ == "__main__":
         'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep87-map70.33-loss0.06912.weights',
         'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
     }
-    print(import_param, '\n', "载入网络...")
+    for k,v in import_param.items():
+        print(k,':',v)
     valid_path = r'D:\py_pro\YOLOv3-PyTorch\data\wenyi\val.txt'
     class_names = r'D:\py_pro\YOLOv3-PyTorch\data\wenyi\dnf_classes.txt'
     with open(class_names, 'r') as file:
@@ -82,9 +82,8 @@ if __name__ == "__main__":
         img_size=int(model.net_info['height']),
         batch_size=import_param['batch_size'],
     )
+    ap_table = [["Index", "Class name", "Precision", "Recall", "AP"]]
     for i, c in enumerate(ap_class):
-        print("+ Class '{}' ({}) - AP:{}  recall:{} precision:{}".format(c, class_list[c], round(AP[i],4),round(float(recall[i]),4),round(float(precision[i]),4)))
-
+        ap_table += [[c, class_list[c], round(AP[i],2),round(float(recall[i]),2),round(float(precision[i]),2)]]
+    print(AsciiTable(ap_table).table)
     print("mAP: ", round(AP.mean(),4))
-    print("recall: ", round(recall.mean(),4))
-    print("precision: ", round(precision.mean(),4))

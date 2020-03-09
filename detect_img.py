@@ -1,5 +1,3 @@
-from __future__ import division
-
 from model import *
 from util import *
 from datasets import *
@@ -13,25 +11,26 @@ import cv2
 
 if __name__ == "__main__":
     map_name = 'wenyi'
-    model_name = 'yolov3-mobileV2'
+    model_name = 'yolov3'
     import_param = {
         'batch_size': 1,
         'conf_thres': 0.8,
         'nms_thres': 0.4,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3-mobileV2_ep60-map80.21-loss0.03100.weights',
+        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep87-map70.33-loss0.06912.weights',
         'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
         'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test\\',
     }
-    print(import_param, '\n', "载入网络...")
+    for k, v in import_param.items():
+        print(k, ':', v)
     # 在GPU上加载模型
-    model = Mainnet(import_param['cfg_path'])
+    model = Mainnet(import_param['cfg_path']).cuda()
     model.load_state_dict(torch.load(import_param['weights_path']))
     # 非训练阶段需要使用eval()模式
     model.eval()
     dataloader = DataLoader(
         ImageFolder(import_param['test_path'],
-                    img_size=320),
+                    img_size=int(model.net_info["height"])),
                     batch_size=import_param['batch_size'],
                     shuffle=False,
                     num_workers=0,
@@ -68,12 +67,12 @@ if __name__ == "__main__":
         w,h = img.size
         font = ImageFont.truetype(font='font/FiraMono-Medium.otf',
                                   size=np.floor(3e-2 * img.size[1] + 0.5).astype('int32'))
-        thickness = (img.size[0] + img.size[1]) // 300
+        thickness = (img.size[0] + img.size[1]) // 600
         if detections is not None:
             # 在画图阶段需要转换一下坐标形式
             # detections = xywh2xyxy(detections)
             # 先将xyxy相对坐标转换成max(600,800)下的坐标
-            detections[:,:4] *= max(h, w)/320
+            detections[:,:4] *= max(h, w)/int(model.net_info["height"])
             # 如果h<w,则是一个宽边图,需要在y轴上减去(w - h) / 2,下同
             if h < w:
                 detections[:,1:4:2] -= (w - h) / 2
@@ -81,7 +80,7 @@ if __name__ == "__main__":
                 detections[:,0:3:2] -= (h - w) / 2
             # 随机取一个颜色
             for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
-                print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
+                print("\t+ Label: %s, Conf: %.5f x1:%d y1:%d x2:%d y2:%d" % (classes[int(cls_pred)], cls_conf.item(),x1, y1, x2, y2))
                 label = '{} {:.2f}'.format(classes[int(cls_pred)], cls_conf.item())
                 draw = ImageDraw.Draw(img)
                 # 获取文字区域的宽高
