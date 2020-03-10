@@ -71,10 +71,11 @@ def create_modules(blocks):
             bn3 = nn.BatchNorm2d(filters)
             leaky_relu = nn.LeakyReLU(0.1, inplace=True)
 
-            # bottleneck层中的升维卷积
-            module.add_module("bottleneck_expand_pw", pw1)
-            module.add_module("bottleneck_expand_bn", bn1)
-            module.add_module("bottleneck_expand_leaky", leaky_relu)
+            if expand != 1:
+                # bottleneck层中的升维卷积
+                module.add_module("bottleneck_expand_pw", pw1)
+                module.add_module("bottleneck_expand_bn", bn1)
+                module.add_module("bottleneck_expand_leaky", leaky_relu)
 
             # bottleneck层中的分组卷积
             module.add_module("bottleneck_dw", dw)
@@ -310,7 +311,6 @@ class Mainnet(nn.Module):
                 # 开始输入数据, x就是处理好的batch_size张图片
                 x = module(x)
             # 如果当前层为bottleneck时,并判断是否需要跳跃链接
-
             elif block_type == "bottleneck":
                 skip = int(block["skip"])
                 x = module(x) + x if skip else module(x)
@@ -328,9 +328,12 @@ class Mainnet(nn.Module):
 
             elif block_type == 'yolo':
                 # 此时x就是最后的特征图,三层yolo检测对应三种尺度的特征图    batch_size=4  num_class=16
-                # x.shape  ->  [4, 507, 16]    [4, 2028,16]    [4, 8112,16]
-                # 其实这个时候每张图片的各种预测数据就已经出来了,只是还需要经处理一下
+                # torch.Size([batch_size, (num_class+5)*anchor_types, feature_w, feature_h])
+                # x.shape  ->  [4, 69, 10, 10]    [4, 69, 20, 20]    [4, 69, 40, 40]
+                # 其实这个时候每张图片的各种预测数据就已经出来了,只是还需要处理一下
                 x, layer_loss = module[0](x, targets)
+                # torch.Size([batch_size, feature_w*feature_h*anchor_types, num_class+5])
+                # x.shape  ->  [4, 300, 23]   [4, 1200, 23]   [4, 4800, 23]
                 loss += layer_loss
                 yolo_outputs.append(x)
             layer_outputs.append(x)

@@ -10,10 +10,10 @@ from terminaltables import AsciiTable
 from torchsummary import summary
 
 if __name__ == "__main__":
-    map_name = 'mouse'
-    model_name = 'yolov3-lite'
+    map_name = 'wenyi'
+    model_name = 'yolov3-mobileV2'
     import_param = {
-        'epochs':100,
+        'epochs':50,
         'batch_size':8,
         'conf_thres':0.5,
         'iou_thres':0.5,    # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一box不能被算作tp两次
@@ -73,7 +73,8 @@ if __name__ == "__main__":
     vis = visdom.Visdom(env='YOLOv3')
     class_names = load_classes(import_param['class_path'])  # 加载所有种类名称
     for epoch in range(1, import_param['epochs']):
-        lr *= 0.98
+        if epoch % 20 == 0:
+            lr = 0.2*lr
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         model.train()
         for batch_i, (img_path, imgs, targets) in enumerate(train_dataloader):
@@ -140,11 +141,8 @@ if __name__ == "__main__":
         log_str += AsciiTable(metric_table).table
         print(log_str)
         # 可视化 Loss输出 这里我使用的是Visdom的可视化 包括下面的mAP
-        vis.line(X=torch.tensor([epoch]), Y=torch.tensor([loss.item()]), win='Loss', update='append',
-                 opts={
-                     'title': 'Loss',
-                     'linecolor':np.array([[25, 25, 100]])
-                 })
+        vis.line(X=torch.tensor([epoch]), Y=torch.tensor([loss.item()]), win='Loss',
+                 update=None if epoch == 1 else 'append', opts={'title': 'Loss',})
         # 训练阶段每隔一定epoch在验证集上测试效果
         if epoch % import_param['evaluation_interval'] == 0:
             print("\n---- 评估模型 ----lr:" + str(lr))
@@ -158,8 +156,8 @@ if __name__ == "__main__":
                 batch_size=import_param['batch_size'],
             )
             # 可视化mAP输出
-            vis.line(X=torch.tensor([epoch]), Y=torch.tensor([AP.mean()]), win='mAP', update='append',
-                     opts={'title': 'mAP','linecolor':np.array([[25, 25, 100]])})
+            vis.line(X=torch.tensor([epoch]), Y=torch.tensor([AP.mean()]), win='mAP',
+                     update=None if epoch == 1 else 'append',opts={'title': 'mAP',})
 
             # 输出 class APs 和 mAP
             ap_table = [["Index", "Class name", "Precision", "Recall", "AP", "F1-score"]]

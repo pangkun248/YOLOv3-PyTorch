@@ -11,13 +11,13 @@ import cv2
 
 if __name__ == "__main__":
     map_name = 'wenyi'
-    model_name = 'yolov3'
+    model_name = 'yolov3-mobileV2'
     import_param = {
         'batch_size': 1,
         'conf_thres': 0.8,
         'nms_thres': 0.4,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep87-map70.33-loss0.06912.weights',
+        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3-mobileV2_ep2-map8.77-loss6.71681.pt',
         'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
         'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test\\',
     }
@@ -65,8 +65,7 @@ if __name__ == "__main__":
     for img_i, (path, detections) in enumerate(zip(imgs, img_detections)):
         img = Image.open(path)
         w,h = img.size
-        font = ImageFont.truetype(font='font/FiraMono-Medium.otf',
-                                  size=np.floor(3e-2 * img.size[1] + 0.5).astype('int32'))
+        font = ImageFont.truetype(font='font/FiraMono-Medium.otf', size=16)
         thickness = (img.size[0] + img.size[1]) // 600
         if detections is not None:
             # 在画图阶段需要转换一下坐标形式
