@@ -57,8 +57,8 @@ class YOLO_Kmeans:
 
         return clusters
 
-    def result2txt(self, data):
-        f = open("D:\py_pro\YOLOv3-PyTorch\data\mouse\yolo_anchors.txt", 'w')
+    def result2txt(self, data,save_path):
+        f = open(save_path, 'w')
         row = np.shape(data)[0]
         for i in range(row):
             if i == 0:
@@ -71,24 +71,24 @@ class YOLO_Kmeans:
     def txt2boxes(self):
         f = open(self.filename, 'r')
         dataSet = []
-        for line in f:
-            infos = line.split(" ")
-            length = len(infos)
-            for i in range(1, length):
-                width = int(infos[i].split(",")[2]) - \
-                    int(infos[i].split(",")[0])
-                height = int(infos[i].split(",")[3]) - \
-                    int(infos[i].split(",")[1])
-                dataSet.append([width, height])
+        for line in f.readlines():
+            label_path = line.replace('jpg','txt').replace('JPGImages','labels').rstrip()
+            with open(label_path) as label_f:
+                for id_xyxy in label_f.readlines():
+                    id_xyxy = id_xyxy.rstrip().split(' ')
+                    id_xyxy_float = [float(a) for a in id_xyxy]
+                    width = id_xyxy_float[3]-id_xyxy_float[1]
+                    height = id_xyxy_float[4]-id_xyxy_float[2]
+                    dataSet.append([width, height])
         result = np.array(dataSet)
         f.close()
         return result
 
-    def txt2clusters(self):
+    def txt2clusters(self,save_path):
         all_boxes = self.txt2boxes()
         result = self.kmeans(all_boxes, k=self.cluster_number)
         result = result[np.lexsort(result.T[0, None])]
-        self.result2txt(result)
+        self.result2txt(result,save_path)
         print("K anchors:\n {}".format(result))
         print("Accuracy: {:.2f}%".format(
             self.avg_iou(all_boxes, result) * 100))
@@ -97,6 +97,9 @@ class YOLO_Kmeans:
 # 此文件为生成YOLOv3中anchors所用的k-means聚类文件
 if __name__ == "__main__":
     cluster_number = 3
-    filename = "D:\py_pro\YOLOv3-PyTorch\data\mouse\\train.txt"
-    kmeans = YOLO_Kmeans(cluster_number, filename)
-    kmeans.txt2clusters()
+    # 聚类所需要用到的训练集
+    train_path = r"D:\py_pro\YOLOv3-PyTorch\data\kalete\train.txt"
+    # 聚类后anchor保存的路径
+    save_path = r"D:\py_pro\YOLOv3-PyTorch\data\kalete\yolo_anchors.txt"
+    kmeans = YOLO_Kmeans(cluster_number, train_path)
+    kmeans.txt2clusters(save_path)

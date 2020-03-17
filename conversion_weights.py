@@ -16,9 +16,3 @@ from PIL import Image
 #     output = traced_script_module(torch.ones(1,3,320,320).cuda())
 #     traced_script_module.save('D:\py_pro\YOLOv3-PyTorch\weights\yolov3.pt')
 #     print(output)
-# score= np.random.randint(low=0,high=100,size=(6))
- # target output size of 5x7
-# img = cv.imread(r'C:\Users\Administrator\Desktop\YOLOv3\1.5690377385154502E9.jpg')
-img = Image.open(r'C:\Users\Administrator\Desktop\YOLOv3\1.5690377385154502E9.jpg')
-img = np.asarray(img, dtype=np.float32)
-print(type(img))
