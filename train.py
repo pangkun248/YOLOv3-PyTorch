@@ -21,7 +21,6 @@ if __name__ == "__main__":
         'evaluation_interval': 1,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\'+model_name+'.cfg',
         'weights':'D:\py_pro\YOLOv3-PyTorch\weights\\'+map_name+'\\yolov3-t_ep95-map80.90-loss0.49322.weights',
-        'class_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\dnf_classes.txt',
         'train_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\train.txt',
         'val_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\val.txt',
         'pretrained':False
@@ -71,7 +70,8 @@ if __name__ == "__main__":
     mAP = 0
     # 创建visdom可视化端口
     vis = visdom.Visdom(env='YOLOv3')
-    class_names = load_classes(import_param['class_path'])  # 加载所有种类名称
+    # 检测的所有类别
+    class_names = ['Mouse',]
     for epoch in range(1, import_param['epochs']):
         if epoch % 20 == 0:
             lr = 0.2*lr
