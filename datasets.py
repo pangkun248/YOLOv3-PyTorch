@@ -41,7 +41,7 @@ class ImageFolder(Dataset):
 
     def __getitem__(self, index):
         img_path = self.files[index]
-        # Extract image as PyTorch tensor
+        # 这里使用convert是防止使用png图片或其他格式时会有多个通道而引起的报错,
         img = transforms.ToTensor()(Image.open(img_path).convert('RGB'))
         # Pad to square resolution
         img, _ = pad_to_square(img, 0)
