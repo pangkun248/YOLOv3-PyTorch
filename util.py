@@ -259,13 +259,6 @@ def compute_iou(box1, box2,xywh=True):
     return iou
 
 
-def load_classes(namesfile):
-    # 加载各个类的名称
-    fp = open(namesfile, "r")
-    names = fp.read().split("\n")
-    return names
-
-
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find("Conv") != -1:
