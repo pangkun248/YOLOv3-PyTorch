@@ -21,7 +21,6 @@ if __name__ == "__main__":
         'video_out': 'short_out.mp4',
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
         'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3-lite_ep49-map97.88-loss43.78128.weights',
-        'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
     }
     for k, v in import_param.items():
         print(k, ':', v)
@@ -37,7 +36,7 @@ if __name__ == "__main__":
     # 非训练阶段需要使用eval()模式
     model.eval()
     # 加载类名
-    classes = load_classes(import_param['class_path'])  # Extracts class labels from file
+    classes = ['Mouse', ]
     # 为每个类名配置不同的颜色
     hsv_tuples = [(x / len(classes), 1., 1.) for x in range(len(classes))]
     colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
@@ -67,10 +66,7 @@ if __name__ == "__main__":
             # FPS计算方式比较简单
             fps = 'FPS:%.2f' % (1/(end_time-start_time))
             # 加载字体文件
-            font = ImageFont.truetype(font='font/FiraMono-Medium.otf',
-                                      size=np.floor(3e-2 * h + 0.5).astype('int32'))
-            # 目标框的厚度
-            thickness = (w + h) // 900
+            font = ImageFont.truetype(font='font/FiraMono-Medium.otf' )
             draw = ImageDraw.Draw(PIL_img)
             if (detections is not None):
                 # 先将在320*320标准下的xyxy坐标转换成max(600,800)下的坐标 再将x向或y向坐标减一下就行
@@ -85,8 +81,7 @@ if __name__ == "__main__":
                     # 获取文字区域的宽高
                     label_w, label_h = draw.textsize(label, font)
                     # 画出物体框 顺便加粗一些边框
-                    for i in range(thickness):
-                        draw.rectangle([x1 + i, y1 + i, x2 - i, y2 - i], outline=colors[int(cls_pred)])
+                    draw.rectangle([x1, y1, x2, y2], outline=colors[int(cls_pred)], width=3)
                     # 画出label框与label和分类概率
                     draw.rectangle([x1, y1 - label_h, x1 + label_w, y1], fill=colors[int(cls_pred)])
                     draw.text((x1, y1 - label_h), label, fill=(0, 0, 0), font=font)
