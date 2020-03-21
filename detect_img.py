@@ -18,7 +18,6 @@ if __name__ == "__main__":
         'nms_thres': 0.4,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
         'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3-mobileV2_ep2-map8.77-loss6.71681.pt',
-        'class_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\dnf_classes.txt',
         'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test\\',
     }
     for k, v in import_param.items():
@@ -36,7 +35,7 @@ if __name__ == "__main__":
                     num_workers=0,
     )
     # 加载类名
-    classes = load_classes(import_param['class_path'])  # Extracts class labels from file
+    classes = ['Mouse',]
     # 为每个类名配置不同的颜色
     hsv_tuples = [(x / len(classes), 1., 1.)for x in range(len(classes))]
     colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
