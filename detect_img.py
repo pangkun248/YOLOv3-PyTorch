@@ -84,8 +84,7 @@ if __name__ == "__main__":
                 # 获取文字区域的宽高
                 label_w, label_h = draw.textsize(label, font)
                 # 画出物体框 顺便加粗一些边框
-                for i in range(thickness):
-                    draw.rectangle([x1+i, y1+i, x2-i, y2-i],outline=colors[int(cls_pred)])
+                draw.rectangle([x1, y1, x2, y2],outline=colors[int(cls_pred)],width=3)
                 # 画出label框
                 draw.rectangle([x1, y1-label_h,x1+label_w,y1],fill=colors[int(cls_pred)])
                 draw.text((x1, y1-label_h), label, fill=(0, 0, 0), font=font)
