@@ -22,7 +22,7 @@ if __name__ == "__main__":
         'weights':'weights\\'+map_name+'\\yolov3-t_ep95-map80.90-loss0.49322.weights',
         'train_path':'data\\'+map_name+'\\train.txt',
         'val_path':'data\\'+map_name+'\\val.txt',
-        'class_path':'data\\'+map_name+'\\dnf_class.txt',
+        'class_path':'data\\'+map_name+'\\dnf_classes.txt',
         'pretrained':False
     }
     for k,v in import_param.items():
