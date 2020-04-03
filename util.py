@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-FloatTensor = torch.cuda.FloatTensor if True else torch.FloatTensor
+FloatTensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
 def xywh2xyxy(x):
     y = x.new(x.shape)
@@ -83,7 +83,6 @@ def NMS(prediction, conf_thres, nms_thres):
         # 开始执行NMS
         keep_boxes = []
         while detections.size(0):
-            # a = time.time()
             # 匹配那些iou大于nms_thres的 unsqueeze(0)是在 第0维增加一维方便与detections[:, :4]进行计算
             large_overlap = compute_iou(detections[0, :4].unsqueeze(0), detections[:, :4], xywh=False) > nms_thres
             # 注:这里的compute_iou操作会有小概率发生意外,导致无限while循环
@@ -99,12 +98,13 @@ def NMS(prediction, conf_thres, nms_thres):
                 continue
             # 匹配同类的,其实这个条件在部分情况下省略会有更好的效果,即不区分是否在同一种类下的NMS
             # label_match = detections[0, -1] == detections[:, -1]
-            # 合并以上两个条件
 
+            # 合并以上两个条件
             # invalid = large_overlap & label_match
             # 注意这里这个变量名为什么叫weights,是因为代码作者(eriklindernoren)想要整合多个nms_thres大于阈值且预测属于同一类的pred_box
             # weights越大代表含有某一类物体的特征越多,同理越小代表越少,但是蚊子再小也是块肉对吧.
             # 我觉得作者应该是想让预测的结果更加精确些,希望尽可能的能把目标特征保留下来.整合特征吧
+            # 同时weights维度为(n,1) 是为了下面相乘做维度上面准备,如果只是4的话维度会变为(n),相乘的话维度不匹配会报错
             weights = detections[large_overlap, 4:5]
             detections[0, :4] = (weights * detections[large_overlap, :4]).sum(0) / weights.sum()
             keep_boxes += [detections[0]]
@@ -150,7 +150,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls):
     unique_classes = np.unique(target_cls)
 
     ap, p, r = [], [], []
-    for c in tqdm(unique_classes, desc="Computing AP"):
+    for c in tqdm(unique_classes, desc="计算 AP"):
         i = pred_cls == c
         # c类下实际目标的数量
         n_gt = (target_cls == c).sum()
@@ -185,9 +185,15 @@ def ap_per_class(tp, conf, pred_cls, target_cls):
 
 
 def get_batch_statistics(outputs, targets, iou_threshold):
+    """
+    :param outputs: 长度为batch_size的一个列表 batch_size*(len(pred_boxes),7) 7 -> x,y,w,h,conf_score,cls_score,cls_id
+    :param targets: batch_size张图片合并到一起的target_box (len(target_boxes),6) -> batch_i,cls_id,x,y,w,h
+    :param iou_threshold: pred_box与target_box的iou阈值,大于它则保留。否则舍弃
+    :return:
+    """
     batch_metrics = []
     for batch_i in range(len(outputs)):
-        # 这种情况下就是一张图片中没有一个pre_box的目标置信度大于conf_thres,详情见NMS方法前三行代码
+        # 这种情况下就是一张图片中没有一个pre_box的conf_score或cls_score大于score_thres,详情见NMS方法前三行代码
         if outputs[batch_i] is None:
             continue
         # 现在的output是经过NMS筛选的数据,即是最终预测的排过序的pred_box.shape  -> len(outputs) == batch_size
@@ -231,7 +237,7 @@ def get_batch_statistics(outputs, targets, iou_threshold):
 
 def compute_iou(box1, box2,xywh=True):
     """
-    返回box1和box2的ious  box1,box2 -> xywh
+    返回box1和box2的ious  默认box1,box2为xywh格式
     box1:box2可以是1:N 可以是1:1 可以是M:1 但是不支持N:M
     关于如何计算iou的,各位可以自己在草稿纸上画一个有部分重合的两块矩形,然后再标上相应的x,y坐标.结合下面的操作步骤,即可一目了然
     """
@@ -308,7 +314,7 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres, grid_size
     target_wh = target_boxes[:, 2:]
     # ious.shape -> (3,len(target)) 三种anchors尺寸下和各个target目标的宽高iou大小
     ious = torch.stack([bbox_wh_iou(anchor, target_wh) for anchor in anchors])
-    # 获取3种anchors大小下的和真实box的iou最大的anchor索引
+    # 获取每个真实box与3种anchors最大iou及anchor索引  (len(target),)
     best_ious, best_ind = ious.max(0)
     # 每个target所在图片在一个batch中的索引及目标种类id,注意这里的i_in_batch和target_labels可能会重复的,即一张图片中有两个同类目标！！！
     i_in_batch, target_labels = target[:, :2].long().t()
@@ -346,8 +352,8 @@ def build_targets(pred_boxes, pred_cls, target, anchors, ignore_thres, grid_size
     # pred_boxes[i_in_batch, best_ind, gj, gi]为(len(target),4)的tensor,这里只是计算网络在target_boxes位置预测的xywh与真实的xywh的iou
     iou_scores[i_in_batch, best_ind, gj, gi] = compute_iou(pred_boxes[i_in_batch, best_ind, gj, gi], target_boxes, xywh=True)
     # tconf 这里进行float处理的原因是为了后面计算loss时和pred_box的float类型对齐
-    tconf = obj_mask.float()
-    return iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf
+    obj_mask_float = obj_mask.float()
+    return iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, obj_mask_float
 
 
 def bbox_wh_iou(anchor_wh, true_boxes_wh):

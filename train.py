@@ -7,29 +7,30 @@ from datasets import *
 from test import evaluate
 import visdom
 from terminaltables import AsciiTable
-from torchsummary import summary
 
 if __name__ == "__main__":
-    map_name = 'wenyi'
-    model_name = 'yolov3-mobileV2'
+    map_name = 'kalete'
+    model_name = 'yolov3'
     import_param = {
         'epochs':50,
         'batch_size':8,
         'conf_thres':0.5,
         'iou_thres':0.5,    # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一box不能被算作tp两次
-        'nms_thres':0.4,
+        'nms_thres':0.5,
         'evaluation_interval': 1,
-        'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\'+model_name+'.cfg',
-        'weights':'D:\py_pro\YOLOv3-PyTorch\weights\\'+map_name+'\\yolov3-t_ep95-map80.90-loss0.49322.weights',
-        'train_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\train.txt',
-        'val_path':'D:\py_pro\YOLOv3-PyTorch\data\\'+map_name+'\\val.txt',
+        'cfg_path': 'yolo_cfg\\'+model_name+'.cfg',
+        'weights':'weights\\'+map_name+'\\yolov3-t_ep95-map80.90-loss0.49322.weights',
+        'train_path':'data\\'+map_name+'\\train.txt',
+        'val_path':'data\\'+map_name+'\\val.txt',
+        'class_path':'data\\'+map_name+'\\dnf_class.txt',
         'pretrained':False
     }
     for k,v in import_param.items():
         print(k,':',v)
+    with open(import_param['class_path'], 'r') as file:
+        class_list = [i.replace('\n', '') for i in file.readlines()]
     model = Mainnet(import_param['cfg_path']).cuda()
     if import_param['pretrained']:
-        # model.load_darknet_weights(import_param['weights'])
         model.load_state_dict(torch.load(import_param['weights']))
     else:
         # 随机初始化权重,会对模型进行高斯随机初始化
@@ -47,7 +48,7 @@ if __name__ == "__main__":
         train_dataset,
         batch_size=import_param['batch_size'],
         shuffle=True,
-        num_workers=0,
+        num_workers=2,
         collate_fn=train_dataset.collate_fn,
     )
     class_metrics = [
@@ -70,12 +71,10 @@ if __name__ == "__main__":
     mAP = 0
     # 创建visdom可视化端口
     vis = visdom.Visdom(env='YOLOv3')
-    # 检测的所有类别
-    class_names = ['Mouse',]
     for epoch in range(1, import_param['epochs']):
-        if epoch % 20 == 0:
-            lr = 0.2*lr
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        # if epoch % 20 == 0:
+        #     lr = 0.2*lr
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr,weight_decay = 0.0005)
         model.train()
         for batch_i, (img_path, imgs, targets) in enumerate(train_dataloader):
             imgs = imgs.cuda()
@@ -162,7 +161,7 @@ if __name__ == "__main__":
             # 输出 class APs 和 mAP
             ap_table = [["Index", "Class name", "Precision", "Recall", "AP", "F1-score"]]
             for i, c in enumerate(ap_class):
-                ap_table += [[c, class_names[c], "%.3f" % precision[i], "%.3f" % recall[i], "%.3f" % AP[i], "%.3f" % f1[i]]]
+                ap_table += [[c, class_list[c], "%.3f" % precision[i], "%.3f" % recall[i], "%.3f" % AP[i], "%.3f" % f1[i]]]
             print(AsciiTable(ap_table).table)
             print(f"---- mAP {AP.mean()}")
             # 根据mAP的值保存最佳模型
