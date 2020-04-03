@@ -161,11 +161,9 @@ class YOLOLayer(nn.Module):
         # prediction.shape  -> batch_size,num_anchors*(self.num_classes + 5),grid_size,grid_size
         batch_size = prediction.size(0)
         grid_size = prediction.size(2)
-        # reshape后的prediction.shape  -> batch_size,num_anchors,(self.num_classes + 5),grid_size,grid_size
         prediction = prediction.reshape(batch_size, self.num_anchors, (self.num_classes + 5), grid_size, grid_size)
         # permute后的prediction.shape  -> batch_size, num_anchors, grid_size, grid_size, (self.num_classes + 5)
         prediction = prediction.permute(0, 1, 3, 4, 2)
-        # 由于最终的xywh都会在以stride为单位的featuremap上预测计算,所以这里anchors的尺寸也要跟着改变(缩小)
         # 以下六个变量是要单独拿出来计算loss的,所以要单独拿出来
         x = torch.sigmoid(prediction[..., 0])  # Center x
         y = torch.sigmoid(prediction[..., 1])  # Center y
@@ -175,7 +173,7 @@ class YOLOLayer(nn.Module):
         # 我这里使用的是softmax分类方法,和原作者sigmoid不同的是,我自己训练的数据集中没有狗,哈士奇或者人,女人这种类别从属现象发生
         # 我自己遇到的都是 飞机 汽车 大炮 人 狗...等等互斥的类别.所以在此进行了更改
         pred_cls = torch.softmax(prediction[..., 5:], dim=1)  # Cls pred.
-        # 下面这些数据时和yolo层绑定在一起的,所以只要yolo层固定了这些数据也就固定了.不然每次都要临时创建需要额外耗费5ms左右
+        # 下面这些数据是和yolo层绑定在一起的,所以只要yolo层固定了这些数据也就固定了.不然每次都要临时创建需要额外耗费5ms左右
         if grid_size != self.grid_size:
             self.grid_size = grid_size
             g = self.grid_size
@@ -189,9 +187,6 @@ class YOLOLayer(nn.Module):
             self.anchor_w = self.scaled_anchors[:, 0:1].reshape((1, self.num_anchors, 1, 1))
             self.anchor_h = self.scaled_anchors[:, 1:2].reshape((1, self.num_anchors, 1, 1))
 
-        # 这里的x_offset与y_offset只是表示每个grid的左上角坐标,方便后面相加
-        # x_offset = torch.arange(grid_size).repeat(grid_size, 1).reshape([1, 1, grid_size, grid_size]).type(FloatTensor)
-        # y_offset = torch.arange(grid_size).repeat(grid_size, 1).t().reshape([1, 1, grid_size, grid_size]).type(FloatTensor)
         # 这里为什要乘以压缩(8,16,32)倍后的anchor而不是原anchor的wh,因为pred_boxes中的wh值也都是在压缩(8,16,32)倍的环境下预测出来的.
         # 主要是为了保持一致,虽然马上就又恢复到正常大小了 (下面cat内容)
         pred_boxes = FloatTensor(prediction[..., :4].shape)
@@ -216,7 +211,7 @@ class YOLOLayer(nn.Module):
             return output, 0
         elif targets.size(0):
             # 这个build_targets方法主要是为了计算loss做准备,把target转换成和pred_box相同的数据格式,方便计算
-            iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf = build_targets(
+            iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, obj_mask_float = build_targets(
                 pred_boxes=pred_boxes,
                 pred_cls=pred_cls,
                 target=targets,
@@ -233,10 +228,10 @@ class YOLOLayer(nn.Module):
             loss_w = self.mse_loss(w[obj_mask], tw[obj_mask])
             loss_h = self.mse_loss(h[obj_mask], th[obj_mask])
             # 检测损失
-            loss_conf_obj = self.bce_loss(pred_conf[obj_mask], tconf[obj_mask])
-            loss_conf_noobj = self.bce_loss(pred_conf[noobj_mask], tconf[noobj_mask])
-            # 含有目标的损失权重要大于没有目标的损失权重
-            # 但是实际上这里的代码和 eriklindernoren / PyTorch-YOLOv3一样，它们在损失函数上的一些细节与yolo3论文中有些许不同
+            loss_conf_obj = self.bce_loss(pred_conf[obj_mask], obj_mask_float[obj_mask])
+            loss_conf_noobj = self.bce_loss(pred_conf[noobj_mask], obj_mask_float[noobj_mask])
+            # 理论上来说含有目标的类别损失权重要大于没有目标的类别损失权重 原始论文中是5:0.5 这里是1:100
+            # 至于为什么这样做 参见 https://github.com/eriklindernoren/PyTorch-YOLOv3/issues/295
             loss_conf = self.obj_scale * loss_conf_obj + self.noobj_scale * loss_conf_noobj
             # 分类损失
             loss_cls = self.bce_loss(pred_cls[obj_mask], tcls[obj_mask])
@@ -296,8 +291,6 @@ class Mainnet(nn.Module):
         # 获取模型参数及模型结构
         self.net_info, self.module_list = create_modules(self.blocks)
         self.yolo_layers = [layer[0] for layer in self.module_list if hasattr(layer[0], "metrics")]
-        # self.seen = 0
-        # self.header_info = np.array([0, 0, 0, self.seen, 0], dtype=np.int32)
 
     def forward(self, x, targets=None):
         # 获取前向传播的网络结构,第一层是net参数层
