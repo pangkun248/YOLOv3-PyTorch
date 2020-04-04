@@ -73,8 +73,8 @@ class ListDataset(Dataset):
     def __getitem__(self, index):
         # 根据index获取对应的图片路径,并去除右边的空格
         img_path = self.img_files[index].rstrip()
-        # ToTensor这一步已经包含了归一化(1/255.0)
-        img = transforms.ToTensor()(Image.open(img_path))
+        # ToTensor这一步已经包含了归一化(1/255.0)  额外转换成RGB是为了防止 PNG等格式图片有四通道
+        img = transforms.ToTensor()(Image.open(img_path).convert("RGB"))
 
         img, pad = pad_to_square(img, 0)
         _, padded_h, padded_w = img.shape
