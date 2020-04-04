@@ -61,7 +61,7 @@ if __name__ == "__main__":
     with open(import_param['class_path'], 'r') as file:
         class_list = [i.replace('\n', '') for i in file.readlines()]
     # 在GPU上初始化模型
-    model = Mainnet(import_param['cfg_path']).cuda()
+    model = YOLOv3(import_param['cfg_path']).cuda()
     if import_param['weights_path']:
         # 加载模型文件
         # model.load_darknet_weights(import_param['weights_path'])

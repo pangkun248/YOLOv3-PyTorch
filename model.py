@@ -136,7 +136,7 @@ def create_modules(blocks):
     return net_info, module_list
 
 
-# 先创建一个空层 给route和shortcut层准备的,具体功能在Mainnet类的forward中
+# 先创建一个空层 给route和shortcut层准备的,具体功能在YOLOv3类的forward中
 class EmptyLayer(nn.Module):
     def __init__(self):
         super(EmptyLayer, self).__init__()
@@ -283,9 +283,9 @@ class YOLOLayer(nn.Module):
         return output, loss
 
 
-class Mainnet(nn.Module):
+class YOLOv3(nn.Module):
     def __init__(self, cfgfile):
-        super(Mainnet, self).__init__()
+        super(YOLOv3, self).__init__()
         # 获取yolov3.cfg的文件配置信息
         self.blocks = parse_cfg(cfgfile)
         # 获取模型参数及模型结构

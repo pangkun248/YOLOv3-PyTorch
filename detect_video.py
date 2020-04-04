@@ -26,7 +26,7 @@ if __name__ == "__main__":
         print(k, ':', v)
     os.makedirs("output", exist_ok=True)
     # 在GPU上加载模型
-    model = Mainnet(import_param['cfg_path']).cuda()
+    model = YOLOv3(import_param['cfg_path']).cuda()
     if import_param['weights_path'].endswith(".weights"):
         # 在模型上加载权重
         # model.load_darknet_weights(import_param['weights_path'])

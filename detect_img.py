@@ -23,7 +23,7 @@ if __name__ == "__main__":
     for k, v in import_param.items():
         print(k, ':', v)
     # 在GPU上加载模型
-    model = Mainnet(import_param['cfg_path']).cuda()
+    model = YOLOv3(import_param['cfg_path']).cuda()
     model.load_state_dict(torch.load(import_param['weights_path']))
     # 非训练阶段需要使用eval()模式
     model.eval()

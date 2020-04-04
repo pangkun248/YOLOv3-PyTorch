@@ -1,7 +1,7 @@
 import time
 from util import *
 import argparse
-from model import Mainnet
+from model import YOLOv3
 from torch.utils.data import DataLoader
 from datasets import *
 from test import evaluate
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         print(k,':',v)
     with open(import_param['class_path'], 'r') as file:
         class_list = [i.replace('\n', '') for i in file.readlines()]
-    model = Mainnet(import_param['cfg_path']).cuda()
+    model = YOLOv3(import_param['cfg_path']).cuda()
     if import_param['pretrained']:
         model.load_state_dict(torch.load(import_param['weights']))
     else:
