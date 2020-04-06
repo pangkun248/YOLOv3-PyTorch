@@ -14,10 +14,9 @@ if __name__ == "__main__":
     import_param = {
         'epochs':50,
         'batch_size':8,
-        'conf_thres':0.5,
+        'conf_thres':0.5,   # nms时pred_box的obj_conf以及cls_conf阈值,目标置信度以及类别置信度小于此阈值的过滤掉
         'iou_thres':0.5,    # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一box不能被算作tp两次
-        'nms_thres':0.5,
-        'evaluation_interval': 1,
+        'nms_thres':0.5,    # nms时iou的阈值,超过此值的pred_box与最大socre(obj_conf*max(cls_conf))的pred_box 加权(obj_conf)和并到一起,之后进行取反操作
         'cfg_path': 'yolo_cfg\\'+model_name+'.cfg',
         'weights':'weights\\'+map_name+'\\yolov3-t_ep95-map80.90-loss0.49322.weights',
         'train_path':'data\\'+map_name+'\\train.txt',
@@ -143,30 +142,29 @@ if __name__ == "__main__":
         vis.line(X=torch.tensor([epoch]), Y=torch.tensor([loss.item()]), win='Loss',
                  update=None if epoch == 1 else 'append', opts={'title': 'Loss',})
         # 训练阶段每隔一定epoch在验证集上测试效果
-        if epoch % import_param['evaluation_interval'] == 0:
-            print("\n---- 评估模型 ----lr:" + str(lr))
-            precision, recall, AP, f1, ap_class = evaluate(
-                model,
-                path=import_param['val_path'],
-                iou_thres=import_param['iou_thres'],
-                conf_thres=import_param['conf_thres'],
-                nms_thres=import_param['nms_thres'],
-                img_size=reso,
-                batch_size=import_param['batch_size'],
-            )
-            # 可视化mAP输出
-            vis.line(X=torch.tensor([epoch]), Y=torch.tensor([AP.mean()]), win='mAP',
-                     update=None if epoch == 1 else 'append',opts={'title': 'mAP',})
+        print("\n---- 评估模型 ----lr:" + str(lr))
+        precision, recall, AP, f1, ap_class = evaluate(
+            model,
+            path=import_param['val_path'],
+            iou_thres=import_param['iou_thres'],
+            conf_thres=import_param['conf_thres'],
+            nms_thres=import_param['nms_thres'],
+            img_size=reso,
+            batch_size=import_param['batch_size'],
+        )
+        # 可视化mAP输出
+        vis.line(X=torch.tensor([epoch]), Y=torch.tensor([AP.mean()]), win='mAP',
+                 update=None if epoch == 1 else 'append',opts={'title': 'mAP',})
 
-            # 输出 class APs 和 mAP
-            ap_table = [["Index", "Class name", "Precision", "Recall", "AP", "F1-score"]]
-            for i, c in enumerate(ap_class):
-                ap_table += [[c, class_list[c], "%.3f" % precision[i], "%.3f" % recall[i], "%.3f" % AP[i], "%.3f" % f1[i]]]
-            print(AsciiTable(ap_table).table)
-            print(f"---- mAP {AP.mean()}")
-            # 根据mAP的值保存最佳模型
-            if AP.mean() > mAP:
-                mAP = AP.mean()
-                torch.save(model.state_dict(),'weights\\'+map_name+'\\'+model_name+'_ep' + str(epoch) + '-map%.2f' % (
-                        AP.mean() * 100) + '-loss%.5f' % loss.item() + '.pt')
+        # 输出 class APs 和 mAP
+        ap_table = [["Index", "Class name", "Precision", "Recall", "AP", "F1-score"]]
+        for i, c in enumerate(ap_class):
+            ap_table += [[c, class_list[c], "%.3f" % precision[i], "%.3f" % recall[i], "%.3f" % AP[i], "%.3f" % f1[i]]]
+        print(AsciiTable(ap_table).table)
+        print(f"---- mAP {AP.mean()}")
+        # 根据mAP的值保存最佳模型
+        if AP.mean() > mAP:
+            mAP = AP.mean()
+            torch.save(model.state_dict(),'weights\\'+map_name+'\\'+model_name+'_ep' + str(epoch) + '-map%.2f' % (
+                    AP.mean() * 100) + '-loss%.5f' % loss.item() + '.pt')
     torch.cuda.empty_cache()
