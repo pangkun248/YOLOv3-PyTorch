@@ -10,20 +10,20 @@ if __name__ == "__main__":
     map_name = 'kalete'
     model_name = 'yolov3'
     import_param = {
-        'epochs':50,
-        'batch_size':8,
-        'conf_thres':0.5,   # nms时pred_box的obj_conf以及cls_conf阈值,目标置信度以及类别置信度小于此阈值的过滤掉
-        'iou_thres':0.5,    # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一box不能被算作tp两次
-        'nms_thres':0.5,    # nms时iou的阈值,与最大score的pred_boxIOU超过此值的pred_box一律过滤掉,
-        'cfg_path': 'yolo_cfg\\'+model_name+'.cfg',
-        'weights':'weights\\'+map_name+'\\prune_0.80.pt',
-        'train_path':'data\\'+map_name+'\\train.txt',
-        'val_path':'data\\'+map_name+'\\val.txt',
-        'class_path':'data\\'+map_name+'\\dnf_classes.txt',
-        'pretrained':False
+        'epochs': 50,
+        'batch_size': 8,
+        'conf_thres': 0.5,  # nms时pred_box的obj_conf以及cls_conf阈值,目标置信度以及类别置信度小于此阈值的过滤掉
+        'iou_thres': 0.5,  # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一box不能被算作tp两次
+        'nms_thres': 0.5,  # nms时iou的阈值,与最大score的pred_boxIOU超过此值的pred_box一律过滤掉,
+        'cfg_path': 'yolo_cfg\\' + model_name + '.cfg',
+        'weights': 'weights\\' + map_name + '\\prune_0.80.pt',
+        'train_path': 'data\\' + map_name + '\\train.txt',
+        'val_path': 'data\\' + map_name + '\\val.txt',
+        'class_path': 'data\\' + map_name + '\\dnf_classes.txt',
+        'pretrained': False
     }
-    for k,v in import_param.items():
-        print(k,':',v)
+    for k, v in import_param.items():
+        print(k, ':', v)
     with open(import_param['class_path'], 'r') as file:
         class_list = [i.replace('\n', '') for i in file.readlines()]
     model = YOLOv3(import_param['cfg_path']).cuda()
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     for epoch in range(1, import_param['epochs']):
         # if epoch % 20 == 0:
         #     lr = 0.2*lr
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr,weight_decay = 0.0005)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.0005)
         model.train()
         for batch_i, (img_path, imgs, targets) in enumerate(train_dataloader):
             imgs = imgs.cuda()
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             # ----------------
             # 获取每个yolo层的损失相关数据
             batch_metrics = [yolo.metrics for yolo in model.yolo_layers]
-            if targets.size(0): # 这是在整个batch中有标注目标情况下
+            if targets.size(0):  # 这是在整个batch中有标注目标情况下
                 # 打印当前训练状态的各项损失值 这里我省略了几个指标没有输出,
                 # 因为我感觉以它们的数据表现来评判模型性能的话不是那么的清楚直观.需要的可以自行加上
                 precision = 0
@@ -103,26 +103,26 @@ if __name__ == "__main__":
                     # conf_obj += batch_metric["conf_obj"]
                     # conf_noobj += batch_metric["conf_noobj"]
                 print("[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, precision: %.5f, recall_50: %.5f, recall_75: %.5f]" %
-                      ( epoch,
-                        import_param['epochs'],
-                        batch_i,
-                        len(train_dataloader),
-                        loss.item(),
-                        precision / 3,
-                        recall_50 / 3,
-                        recall_75 / 3,
-                        # cls_acc / 3,
-                        # conf_obj / 3,
-                        # conf_noobj / 3,
-                        )
-                    )
+                      (epoch,
+                       import_param['epochs'],
+                       batch_i,
+                       len(train_dataloader),
+                       loss.item(),
+                       precision / 3,
+                       recall_50 / 3,
+                       recall_75 / 3,
+                       # cls_acc / 3,
+                       # conf_obj / 3,
+                       # conf_noobj / 3,
+                       )
+                      )
             else:
                 conf_noobj = 0
                 for batch_metric in batch_metrics:
                     conf_noobj += batch_metric["conf_noobj"]
                 print("[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, conf_noobj: %.5f, 该batch无标注目标]" %
-                      ( epoch, import_param['epochs'], batch_i, len(train_dataloader), loss.item(), conf_noobj / 3,)
-                     )
+                      (epoch, import_param['epochs'], batch_i, len(train_dataloader), loss.item(), conf_noobj / 3,)
+                      )
         # 每epoch输出一次详细loss
         log_str = "\n [Epoch %d/%d] " % (epoch, import_param['epochs'])
         log_str += " Total loss:" + str(loss.item()) + '\n'
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         print(log_str)
         # 可视化 Loss输出 这里我使用的是Visdom的可视化 包括下面的mAP
         vis.line(X=torch.tensor([epoch]), Y=torch.tensor([loss.item()]), win='Loss',
-                 update=None if epoch == 1 else 'append', opts={'title': 'Loss',})
+                 update=None if epoch == 1 else 'append', opts={'title': 'Loss', })
         # 训练阶段每隔一定epoch在验证集上测试效果
         print("\n---- 评估模型 ----lr:" + str(lr))
         precision, recall, AP, f1, ap_class = evaluate(
@@ -152,7 +152,7 @@ if __name__ == "__main__":
         )
         # 可视化mAP输出
         vis.line(X=torch.tensor([epoch]), Y=torch.tensor([AP.mean()]), win='mAP',
-                 update=None if epoch == 1 else 'append',opts={'title': 'mAP',})
+                 update=None if epoch == 1 else 'append', opts={'title': 'mAP', })
 
         # 输出 class APs 和 mAP
         ap_table = [["Index", "Class name", "Precision", "Recall", "AP", "F1-score"]]
@@ -163,6 +163,7 @@ if __name__ == "__main__":
         # 根据mAP的值保存最佳模型
         if AP.mean() > mAP:
             mAP = AP.mean()
-            torch.save(model.state_dict(),'weights\\'+map_name+'\\'+model_name+'_ep' + str(epoch) + '-map%.2f' % (
-                    AP.mean() * 100) + '-loss%.5f' % loss.item() + '.pt')
+            torch.save(model.state_dict(),
+                       'weights\\' + map_name + '\\' + model_name + '_ep' + str(epoch) + '-map%.2f' % (
+                               AP.mean() * 100) + '-loss%.5f' % loss.item() + '.pt')
     torch.cuda.empty_cache()

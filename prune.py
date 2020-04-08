@@ -6,19 +6,18 @@ from copy import deepcopy
 import time
 from terminaltables import AsciiTable
 
-
 if __name__ == "__main__":
     map_name = 'kalete'
     model_name = 'yolov3'
     import_param = {
-        'batch_size':16,
-        'conf_thres':0.5,
-        'iou_thres':0.5,
-        'nms_thres':0.1,
-        'cfg_path': 'yolo_cfg\\'+model_name+'.cfg',
-        'weights': 'weights\\'+map_name+'\\yolov3_ep1-map4.64-loss26.28099.pt',
-        'train_path': 'data\\'+map_name+'\\train.txt',
-        'val_path': 'data\\'+map_name+'\\val.txt',
+        'batch_size': 16,
+        'conf_thres': 0.5,
+        'iou_thres': 0.5,
+        'nms_thres': 0.1,
+        'cfg_path': 'yolo_cfg\\' + model_name + '.cfg',
+        'weights': 'weights\\' + map_name + '\\yolov3_ep1-map4.64-loss26.28099.pt',
+        'train_path': 'data\\' + map_name + '\\train.txt',
+        'val_path': 'data\\' + map_name + '\\val.txt',
         'percent': 0.79
     }
     model = YOLOv3(import_param['cfg_path']).cuda()
@@ -94,9 +93,10 @@ if __name__ == "__main__":
         )
         print(f'理论剪枝率为{percent},'
               f'待剪枝的conv通道总数经过剪枝从 {len(sorted_bn)} 到 {remain_num},'
-              f'实际剪枝率为{1-remain_num / len(sorted_bn):.2f},'
+              f'实际剪枝率为{1 - remain_num / len(sorted_bn):.2f},'
               f'将bn层中应该剪枝掉的层的γ参数置为0之后的模型mAP为 {AP.mean():.4f}')
         return gamma
+
 
     threshold = prune_and_eval(model, sorted_bn, 0.80)
 
@@ -119,7 +119,7 @@ if __name__ == "__main__":
         batch_size=import_param['batch_size'],
     )
 
-    print('剪枝之后的mAP',AP.mean())
+    print('剪枝之后的mAP', AP.mean())
 
     # 重新创建一份和原始cfg一模一样的网络配置文件,并更改剪枝层的卷积核个数
     compact_module_defs = deepcopy(model.blocks)
@@ -137,6 +137,7 @@ if __name__ == "__main__":
     # 随机生成测试数据
     random_input = torch.rand((1, 3, 320, 320)).cuda()
 
+
     def obtain_avg_forward_time(input, model, repeat=200):
 
         model.eval()
@@ -147,6 +148,7 @@ if __name__ == "__main__":
         avg_infer_time = (time.time() - start) / repeat
 
         return avg_infer_time, output
+
 
     # 测试剪枝前后两个模型的前向传播时间,并且理论上来说 compact_output和compact_output应该完全一致
     pruned_forward_time, pruned_output = obtain_avg_forward_time(random_input, pruned_model)

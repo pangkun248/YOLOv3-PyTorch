@@ -123,7 +123,8 @@ def init_weights_from_loose_model(compact_model, loose_model, CBL_idx, Conv_idx,
         input_mask = get_input_mask(loose_model.blocks, idx, CBLidx2mask)
         in_channel_idx = np.argwhere(input_mask)[:, 0].tolist()
         compact_conv.weight.data = loose_conv.weight.data[:, in_channel_idx, :, :].clone()
-        compact_conv.bias.data   = loose_conv.bias.data.clone()
+        compact_conv.bias.data = loose_conv.bias.data.clone()
+
 
 def updateBN(module_list, s, prune_idx):
     for idx in prune_idx:
@@ -211,7 +212,7 @@ def parse_module_defs(module_defs):
     ignore_idx = set()
     for i, module_def in enumerate(module_defs):
         if module_def['type'] == 'shortcut':
-            ignore_idx.add(i-1)
+            ignore_idx.add(i - 1)
             identity_idx = (i + int(module_def['from']))
             if module_defs[identity_idx]['type'] == 'convolutional':
                 ignore_idx.add(identity_idx)
