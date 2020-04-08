@@ -1,5 +1,5 @@
 from model import *
-from util import *
+from utils.util import *
 from datasets import *
 import os
 import time
@@ -10,24 +10,24 @@ import cv2
 
 
 if __name__ == "__main__":
-    map_name = 'mouse'
-    model_name = 'yolov3-lite'
+    map_name = 'kalete'
+    model_name = 'yolov3'
     import_param = {
         'batch_size': 1,
         'conf_thres': 0.8,
         'iou_thres': 0.5,
         'nms_thres': 0.4,
-        'video_in': "D:\py_pro\YOLOv3-PyTorch\lastest.mp4",
-        'video_out': 'short_out.mp4',
-        'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3-lite_ep49-map97.88-loss43.78128.weights',
+        'video_in': r"D:\BaiduNetdiskDownload\wenyi.avi",
+        'video_out': '_out.mp4',
+        'cfg_path': 'yolo_cfg\\' + model_name + '.cfg',
+        'weights_path': 'weights\\' + map_name + '\\yolov3_ep1-map4.64-loss26.28099.pt',
     }
     for k, v in import_param.items():
         print(k, ':', v)
     os.makedirs("output", exist_ok=True)
     # 在GPU上加载模型
     model = YOLOv3(import_param['cfg_path']).cuda()
-    if import_param['weights_path'].endswith(".weights"):
+    if import_param['weights_path']:
         # 在模型上加载权重
         # model.load_darknet_weights(import_param['weights_path'])
         model.load_state_dict(torch.load(import_param['weights_path']))
@@ -66,7 +66,7 @@ if __name__ == "__main__":
             # FPS计算方式比较简单
             fps = 'FPS:%.2f' % (1/(end_time-start_time))
             # 加载字体文件
-            font = ImageFont.truetype(font='font/FiraMono-Medium.otf' )
+            font = ImageFont.truetype(font='font/FiraMono-Medium.otf', size=16)
             draw = ImageDraw.Draw(PIL_img)
             if (detections is not None):
                 # 先将在320*320标准下的xyxy坐标转换成max(600,800)下的坐标 再将x向或y向坐标减一下就行

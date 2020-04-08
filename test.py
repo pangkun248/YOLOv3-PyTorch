@@ -1,5 +1,5 @@
 from model import *
-from util import *
+from utils.eval_tool import *
 from datasets import *
 import tqdm
 import torch
@@ -44,15 +44,15 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
 
 
 if __name__ == "__main__":
-    map_name = 'mouse'
-    model_name = 'yolov3-lite'
+    map_name = 'kalete'
+    model_name = 'yolov3'
     import_param = {
         'batch_size': 4,
         'conf_thres': 0.5,
         'iou_thres': 0.5,
         'nms_thres': 0.5,
         'cfg_path': 'yolo_cfg\\' + model_name + '.cfg',
-        'weights_path': 'weights\\' + map_name + '\\yolov3_ep87-map70.33-loss0.06912.weights',
+        'weights_path': 'weights\\' + map_name + '\\yolov3_ep1-map4.64-loss26.28099.pt',
         'class_path': 'data\\' + map_name + '\\dnf_classes.txt',
         'valid_path': 'data\\' + map_name + '\\val.txt',
     }

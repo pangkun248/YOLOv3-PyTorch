@@ -1,6 +1,4 @@
-import time
-from util import *
-import argparse
+from utils.util import *
 from model import YOLOv3
 from torch.utils.data import DataLoader
 from datasets import *
@@ -16,9 +14,9 @@ if __name__ == "__main__":
         'batch_size':8,
         'conf_thres':0.5,   # nms时pred_box的obj_conf以及cls_conf阈值,目标置信度以及类别置信度小于此阈值的过滤掉
         'iou_thres':0.5,    # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一box不能被算作tp两次
-        'nms_thres':0.5,    # nms时iou的阈值,超过此值的pred_box与最大socre(obj_conf*max(cls_conf))的pred_box 加权(obj_conf)和并到一起,之后进行取反操作
+        'nms_thres':0.5,    # nms时iou的阈值,与最大score的pred_boxIOU超过此值的pred_box一律过滤掉,
         'cfg_path': 'yolo_cfg\\'+model_name+'.cfg',
-        'weights':'weights\\'+map_name+'\\yolov3-t_ep95-map80.90-loss0.49322.weights',
+        'weights':'weights\\'+map_name+'\\prune_0.80.pt',
         'train_path':'data\\'+map_name+'\\train.txt',
         'val_path':'data\\'+map_name+'\\val.txt',
         'class_path':'data\\'+map_name+'\\dnf_classes.txt',

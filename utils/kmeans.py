@@ -98,7 +98,7 @@ class YOLO_Kmeans:
 if __name__ == "__main__":
     cluster_number = 3
     # 聚类所需要用到的训练集
-    train_path = r"D:\py_pro\YOLOv3-PyTorch\data\kalete\train.txt"
+    train_path = r"/data/kalete/train.txt"
     # 聚类后anchor保存的路径
     save_path = r"D:\py_pro\YOLOv3-PyTorch\data\kalete\yolo_anchors.txt"
     kmeans = YOLO_Kmeans(cluster_number, train_path)

@@ -1,5 +1,5 @@
 import torch.nn as nn
-from util import *
+from utils.util import *
 import torch
 
 
@@ -284,10 +284,14 @@ class YOLOLayer(nn.Module):
 
 
 class YOLOv3(nn.Module):
-    def __init__(self, cfgfile):
+    def __init__(self, cfg):
         super(YOLOv3, self).__init__()
-        # 获取yolov3.cfg的文件配置信息
-        self.blocks = parse_cfg(cfgfile)
+        # 获取yolov3.cfg的文件配置信息,如果cfg为字符串则代表了是普通的cfg文件路径
+        if isinstance(cfg, str):
+            self.blocks = parse_cfg(cfg)
+        # 否则就是剪枝阶段直接传进来的已解析后的网络配置
+        else:
+            self.blocks = cfg
         # 获取模型参数及模型结构
         self.net_info, self.module_list = create_modules(self.blocks)
         self.yolo_layers = [layer[0] for layer in self.module_list if hasattr(layer[0], "metrics")]

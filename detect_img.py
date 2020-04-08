@@ -1,5 +1,5 @@
 from model import *
-from util import *
+from utils.util import *
 from datasets import *
 import time
 import torch
@@ -10,14 +10,14 @@ import cv2
 
 
 if __name__ == "__main__":
-    map_name = 'wenyi'
-    model_name = 'yolov3-mobileV2'
+    map_name = 'kalete'
+    model_name = 'yolov3'
     import_param = {
         'batch_size': 1,
         'conf_thres': 0.8,
         'nms_thres': 0.4,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3-mobileV2_ep2-map8.77-loss6.71681.pt',
+        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep1-map4.64-loss26.28099.pt',
         'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test\\',
     }
     for k, v in import_param.items():

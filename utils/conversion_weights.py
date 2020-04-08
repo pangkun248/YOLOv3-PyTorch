@@ -1,9 +1,3 @@
-import torch
-from util import *
-from model import *
-from datasets import *
-import cv2 as cv
-from PIL import Image
 # 转换pytorch权重模型致libtorch可以调用的模型
 # if __name__ == "__main__":
 #     model_name = 'yolov3'
