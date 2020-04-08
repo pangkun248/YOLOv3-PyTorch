@@ -46,7 +46,7 @@ win10 cuda10.1 cudnn7.6.1 python3.7 pytorch1.3 GPU:1660 CPU:i5-8400
 ### 模型剪枝
 参考 https://github.com/tanluren/yolov3-channel-and-layer-pruning 及其中列出的多个repo
 
-目前来说,剪枝可达到80%~90%的剪枝率,而mAP掉2~3个点.
+目前来说,剪枝可达到80%-90%的剪枝率,而mAP掉2-3个点.
 
 但是和每个任务场景及模型有很强的关联,也就说有些任务场景可以达到很高的剪枝率有些却比较低,模型也是同理.
 
