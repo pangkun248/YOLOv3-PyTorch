@@ -128,7 +128,7 @@ def init_weights_from_loose_model(compact_model, loose_model, CBL_idx, Conv_idx,
 
 def updateBN(module_list, s, prune_idx):
     for idx in prune_idx:
-        # Squential(Conv, BN, Lrelu)
+        # Squential(Conv, BN, L-relu)
         bn_module = module_list[idx][1]
         bn_module.weight.grad.data.add_(s * torch.sign(bn_module.weight.data))  # L1
 
@@ -168,6 +168,7 @@ def beta2next(model, prune_idx, CBL_idx, CBLidx2mask):
         # 两个上采样层前的卷积层,注意这里只是针对于darknet-53层的标准网络,如果主干网络变更的话,这里的数字也要进行相应的变更
         next_idx_list = [idx + 1]
         # 因为yolo层的前三层网络会有两个分叉一个直接通往yolo层,一个继续进行卷积.所以这里需要额外处理一下
+        # 注意! 这里主干网络默认是darknet-53,如果是mobilenet或其他则需要手动更改
         if idx == 79:
             next_idx_list.append(84)
         elif idx == 91:
@@ -216,15 +217,12 @@ def parse_module_defs(module_defs):
             identity_idx = (i + int(module_def['from']))
             if module_defs[identity_idx]['type'] == 'convolutional':
                 ignore_idx.add(identity_idx)
-
-            # 这一步是多余的
-            # elif module_defs[identity_idx]['type'] == 'shortcut':
-            #     ignore_idx.add(identity_idx - 1)
-    # 这两层是固定的,是上采样层
-    ignore_idx.add(84)
-    ignore_idx.add(96)
-
-    # 这个是从 有bn可以剪枝的conv层中 剔除 shortcut层中的conv层
+        elif module_def['type'] == 'upsample':
+            ignore_idx.add(i-1)
+        # 这一步是多余的
+        # elif module_defs[identity_idx]['type'] == 'shortcut':
+        #     ignore_idx.add(identity_idx - 1)
+    # 这个是从 有bn可以剪枝的conv层中 剔除 shortcut层中的其实末尾conv层
     prune_idx = [idx for idx in CBL_idx if idx not in ignore_idx]
     # 总结一下,哪些conv层无法剪枝 1.yolo层前一层。2.shortcut的起始和末尾层无法剪枝3.upsample层前一层无法剪枝
     return CBL_idx, Conv_idx, prune_idx

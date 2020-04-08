@@ -2,6 +2,7 @@ from utils.util import *
 from model import YOLOv3
 from torch.utils.data import DataLoader
 from datasets import *
+from utils.prune_tool import parse_module_defs, updateBN
 from test import evaluate
 import visdom
 from terminaltables import AsciiTable
@@ -20,7 +21,9 @@ if __name__ == "__main__":
         'train_path': 'data\\' + map_name + '\\train.txt',
         'val_path': 'data\\' + map_name + '\\val.txt',
         'class_path': 'data\\' + map_name + '\\dnf_classes.txt',
-        'pretrained': False
+        'pretrained': False, # 是否基于已有模型继续训练
+        'is_pruned': False,  # 是否对模型进行稀疏化训练
+        'sparse_rate':0.001, # 稀疏因子,如果稀疏化训练出来的bn中γ值普遍偏大,则可以调大该值 理想γ值大部分应落在[0, 0.1]区间
     }
     for k, v in import_param.items():
         print(k, ':', v)
@@ -32,7 +35,7 @@ if __name__ == "__main__":
     else:
         # 随机初始化权重,会对模型进行高斯随机初始化
         model.apply(weights_init_normal)
-    print("网络权重加载成功.")
+    _, _, prune_idx = parse_module_defs(model.blocks)
     # 设置网络输入图片尺寸大小与学习率
     reso = int(model.net_info["height"])
     lr = float(model.net_info["learning_rate"])
@@ -78,6 +81,8 @@ if __name__ == "__main__":
             targets = targets.cuda()
             loss, outputs = model(imgs, targets)
             loss.backward()
+            if import_param['is_pruned']:
+                updateBN(model.module_list, import_param['sparse_rate'], prune_idx)
             optimizer.step()
             optimizer.zero_grad()
 
