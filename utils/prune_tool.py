@@ -133,6 +133,70 @@ def updateBN(module_list, s, prune_idx):
         bn_module.weight.grad.data.add_(s * torch.sign(bn_module.weight.data))  # L1
 
 
+def update_activation(i, pruned_model, activation, CBL_idx):
+    next_idx = i + 1
+    if pruned_model.blocks[next_idx]['type'] == 'convolutional':
+        next_conv = pruned_model.module_list[next_idx][0]
+        conv_sum = next_conv.weight.data.sum(dim=(2, 3))
+        offset = conv_sum.matmul(activation.reshape(-1, 1)).reshape(-1)
+        if next_idx in CBL_idx:
+            next_bn = pruned_model.module_list[next_idx][1]
+            next_bn.running_mean.data.sub_(offset)
+        else:
+            next_conv.bias.data.add_(offset)
+
+
+def beta2next_layer(model, prune_idx, CBL_idx, CBLidx2mask):
+    # 层剪枝中将shortcut后两层的conv中的β移植到后面的层中去
+    pruned_model = deepcopy(model)
+    activations = []
+    for i, model_def in enumerate(model.blocks):
+        # 这里其实根据传进来的参数来看,操作有些多余的,因为只有部分shortcut中的conv层是参与剪枝的
+        if model_def['type'] == 'convolutional':
+            activation = torch.zeros(int(model_def['filters'])).cuda()
+            if i in prune_idx:
+                mask = torch.from_numpy(CBLidx2mask[i]).cuda()
+                bn_module = pruned_model.module_list[i][1]
+                bn_module.weight.data.mul_(mask)
+                activation = F.leaky_relu((1 - mask) * bn_module.bias.data, 0.1)
+                update_activation(i, pruned_model, activation, CBL_idx)
+                bn_module.bias.data.mul_(mask)
+            activations.append(activation)
+
+        elif model_def['type'] == 'shortcut':
+            actv1 = activations[i - 1]
+            from_layer = int(model_def['from'])
+            actv2 = activations[i + from_layer]
+            activation = actv1 + actv2
+            update_activation(i, pruned_model, activation, CBL_idx)
+            activations.append(activation)
+
+        elif model_def['type'] == 'route':
+            # spp不参与剪枝，其中的route不用更新，仅占位
+            from_layers = [int(s) for s in model_def['layers'].split(',')]
+            activation = None
+            if len(from_layers) == 1:
+                activation = activations[i + from_layers[0]]
+                update_activation(i, pruned_model, activation, CBL_idx)
+            elif len(from_layers) == 2:
+                actv1 = activations[i + from_layers[0]]
+                actv2 = activations[from_layers[1]]
+                activation = torch.cat((actv1, actv2))
+                update_activation(i, pruned_model, activation, CBL_idx)
+            activations.append(activation)
+
+        elif model_def['type'] == 'upsample':
+            activations.append(activations[i - 1])
+
+        elif model_def['type'] == 'yolo':
+            activations.append(None)
+
+        elif model_def['type'] == 'maxpool':
+            activations.append(None)
+
+    return pruned_model
+
+
 def beta2next(model, prune_idx, CBL_idx, CBLidx2mask):
     """
     该方法主要是将待剪枝层bn的β值做一下处理,然后用它的下一层的conv层的bn中的mean或者conv层中的bias来吸收这个处理值
@@ -194,7 +258,7 @@ def beta2next(model, prune_idx, CBL_idx, CBLidx2mask):
     return pruned_model
 
 
-def parse_module_defs(module_defs):
+def parse_module_defs_channel(module_defs):
     """
     该方法就是一句网路结构返回 完整conv,普通conv,以及最终需要剪枝的索引
     :param module_defs: 网络结构的配置文件
@@ -226,6 +290,22 @@ def parse_module_defs(module_defs):
     prune_idx = [idx for idx in CBL_idx if idx not in ignore_idx]
     # 总结一下,哪些conv层无法剪枝 1.yolo层前一层。2.shortcut的起始和末尾层无法剪枝3.upsample层前一层无法剪枝
     return CBL_idx, Conv_idx, prune_idx
+
+
+def parse_blocks_layer(module_defs):
+    CBL_idx = []
+    Conv_idx = []
+    shortcut_idx = []
+    for i, module_def in enumerate(module_defs):
+        if module_def['type'] == 'convolutional':
+            if module_def['batch_normalize'] == '1':
+                CBL_idx.append(i)
+            else:
+                Conv_idx.append(i)
+        elif module_def['type'] == 'shortcut':
+            shortcut_idx.append(i - 1)
+
+    return CBL_idx, Conv_idx, shortcut_idx
 
 
 def gather_bn_weights(module_list, prune_idx):

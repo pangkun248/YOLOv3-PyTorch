@@ -19,8 +19,9 @@ if __name__ == "__main__":
         'nms_thres': 0.4,
         'video_in': r"D:\BaiduNetdiskDownload\wenyi.avi",
         'video_out': '_out.mp4',
-        'cfg_path': 'yolo_cfg\\' + model_name + '.cfg',
-        'weights_path': 'weights\\' + map_name + '\\yolov3_ep1-map4.64-loss26.28099.pt',
+        # 'cfg_path': 'yolo_cfg\\' + model_name + '.cfg',
+        'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\weights\kalete\layer_pruned_16.cfg',
+        'weights_path': 'weights\\' + map_name + '\\layer_pruned_16.pt',
     }
     for k, v in import_param.items():
         print(k, ':', v)
@@ -36,7 +37,7 @@ if __name__ == "__main__":
     # 非训练阶段需要使用eval()模式
     model.eval()
     # 加载类名
-    classes = ['Mouse', ]
+    classes = ["BoneMan", "Hatter", "FatMan", "LittleMan", "Cowboy", "Werewolf","Bena","Papjo","Kokoyi","GreenDwarf","Giselle","Bellett","StormRider","Gold","Door","Close",]
     # 为每个类名配置不同的颜色
     hsv_tuples = [(x / len(classes), 1., 1.) for x in range(len(classes))]
     colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
@@ -91,4 +92,5 @@ if __name__ == "__main__":
             # cv2.waitKey(300)
             # out.write(cv_img)
             cv2.waitKey(1)
-
+        else:
+            break

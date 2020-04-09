@@ -18,7 +18,7 @@ if __name__ == "__main__":
         'weights': 'weights\\' + map_name + '\\yolov3_ep1-map4.64-loss26.28099.pt',
         'train_path': 'data\\' + map_name + '\\train.txt',
         'val_path': 'data\\' + map_name + '\\val.txt',
-        'percent': 0.79
+        'percent': 0.79     # 代表了剪枝率
     }
     model = YOLOv3(import_param['cfg_path']).cuda()
     model.load_state_dict(torch.load(import_param['weights']))
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     # CBLidx2mask conv层索引(yolo前一层除外) : conv层剪枝掩膜(1为保留 0为剪掉)
     CBLidx2mask = {idx: mask for idx, mask in zip(CBL_idx, filters_mask)}
 
-    # 将稀疏化训练后的模型中待剪枝层的bn中的β参数移植到下一(二)层.并返回移植后的模型
+    # 将稀疏化训练后的模型中待剪枝层的bn中的β参数移植到下后面的层.并返回移植后的模型
     pruned_model = beta2next(model, prune_idx, CBL_idx, CBLidx2mask)
 
     precision, recall, AP, f1, ap_class = evaluate(
