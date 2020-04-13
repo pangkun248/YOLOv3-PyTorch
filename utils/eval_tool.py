@@ -112,7 +112,7 @@ def get_batch_statistics(outputs, targets, iou_threshold):
                 # 判断条件1.iou阈值
                 #        2.与pred_box最大iou的target_box的索引是否已经出现,如果出现两次则代表某一target_box被预测两次最大IOU,这不能算TP
                 #        3.pred_box的class是否与target_box的class一致
-                if iou >= iou_threshold and target_index not in detected_boxes and pred_label == target_labels[box_index]:
+                if iou >= iou_threshold and target_index not in detected_boxes and pred_label == target_labels[target_index]:
                     true_positives[pred_i] = 1
                     detected_boxes.append(target_index)
 
