@@ -35,9 +35,10 @@ if __name__ == "__main__":
                     num_workers=0,
     )
     # 加载类名
-    classes = ['Mouse',]
+    with open(import_param['class_path'], 'r') as file:
+        class_list = [i.replace('\n', '') for i in file.readlines()]
     # 为每个类名配置不同的颜色
-    hsv_tuples = [(x / len(classes), 1., 1.)for x in range(len(classes))]
+    hsv_tuples = [(x / len(class_list), 1., 1.)for x in range(len(class_list))]
     colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
     colors = list(map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)),colors))
 
@@ -78,8 +79,8 @@ if __name__ == "__main__":
                 detections[:,0:3:2] -= (h - w) / 2
             # 随机取一个颜色
             for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
-                print("\t+ Label: %s, Conf: %.5f x1:%d y1:%d x2:%d y2:%d" % (classes[int(cls_pred)], cls_conf.item(),x1, y1, x2, y2))
-                label = '{} {:.2f}'.format(classes[int(cls_pred)], cls_conf.item())
+                print("\t+ Label: %s, Conf: %.5f x1:%d y1:%d x2:%d y2:%d" % (class_list[int(cls_pred)], cls_conf.item(),x1, y1, x2, y2))
+                label = '{} {:.2f}'.format(class_list[int(cls_pred)], cls_conf.item())
                 draw = ImageDraw.Draw(img)
                 # 获取文字区域的宽高
                 label_w, label_h = draw.textsize(label, font)
