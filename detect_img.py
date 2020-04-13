@@ -16,8 +16,8 @@ if __name__ == "__main__":
         'batch_size': 1,
         'conf_thres': 0.8,
         'nms_thres': 0.4,
-        'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep1-map4.64-loss26.28099.pt',
+        'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\kalete_channel_0.2_mAP_0.136.cfg',
+        'weights_path': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\channel_0.2_mAP_0.136.pt',
         'test_path': 'D:\py_pro\YOLOv3-PyTorch\\test\\',
     }
     for k, v in import_param.items():

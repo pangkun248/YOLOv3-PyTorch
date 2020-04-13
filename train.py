@@ -2,7 +2,7 @@ from utils.util import *
 from model import YOLOv3
 from torch.utils.data import DataLoader
 from datasets import *
-from utils.prune_tool import parse_module_defs_channel, updateBN, parse_module_defs_layer
+from prune.prune_tool import parse_blocks_normal,  parse_blocks_layer, parse_blocks_slim, updateBN
 from test import evaluate
 import visdom
 from terminaltables import AsciiTable
@@ -14,7 +14,7 @@ if __name__ == "__main__":
         'epochs': 50,
         'batch_size': 8,
         'conf_thres': 0.5,  # nms时pred_box的obj_conf以及cls_conf阈值,目标置信度以及类别置信度小于此阈值的过滤掉
-        'iou_thres': 0.5,  # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一box不能被算作tp两次
+        'iou_thres': 0.5,  # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一target_box不能被算作tp两次
         'nms_thres': 0.5,  # nms时iou的阈值,与最大score的pred_boxIOU超过此值的pred_box一律过滤掉,
         'cfg_path': 'yolo_cfg\\' + model_name + '.cfg',
         'weights': 'weights\\' + map_name + '\\prune_0.80.pt',
@@ -23,8 +23,7 @@ if __name__ == "__main__":
         'class_path': 'data\\' + map_name + '\\dnf_classes.txt',
         'pretrained': False,     # 是否基于已有模型继续训练
         'is_pruned': False,       # 是否对模型进行稀疏化训练
-        'channel_pruned': False,  # 通道剪枝
-        'layer_pruned': False,    # 层剪枝
+        'pruned_id': 1,          # 剪枝方式 1为普通无shortcut剪枝 2为layer剪枝 3为slim剪枝
         'sparse_rate':0.01,      # 稀疏因子,如果稀疏化训练出来的bn中γ值普遍偏大,则可以调大该值 理想γ值大部分应落在[0, 0.1]区间
     }
     for k, v in import_param.items():
@@ -37,11 +36,12 @@ if __name__ == "__main__":
     else:
         # 随机初始化权重,会对模型进行高斯随机初始化
         model.apply(weights_init_normal)
-
-    if import_param['channel_pruned']:
-        _, _, prune_idx = parse_module_defs_channel(model.blocks)       # 通道剪枝
-    elif import_param['layer_pruned']:
-        _, _, prune_idx = parse_module_defs_layer(model.blocks)         # 层剪枝
+    prune_set = {
+        1 : parse_blocks_normal(model.blocks),  # 通道剪枝
+        2 : parse_blocks_layer(model.blocks),   # 层剪枝
+        3 : parse_blocks_slim(model.blocks),    # slim剪枝
+    }
+    _, _, prune_idx = prune_set[import_param['pruned_id']]
 
     # 设置网络输入图片尺寸大小与学习率
     reso = int(model.net_info["height"])

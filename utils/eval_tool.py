@@ -106,15 +106,15 @@ def get_batch_statistics(outputs, targets, iou_threshold):
                 if pred_label not in target_labels:
                     continue
                 # 这里的box_index是所有pred_box与某一个target_box的最大iou的pred_box的索引,主要是防止某一个pred_box预测两个target_box
-                iou, box_index = compute_iou(pred_box.unsqueeze(0), target_boxes,xywh=False).max(0)
+                iou, target_index = compute_iou(pred_box.unsqueeze(0), target_boxes,xywh=False).max(0)
                 # 这里对true_positives的计算和作者代码有些不一样,因为我觉得即使是两个不同label的物体iou也可能大于阈值
                 # 详情见https://github.com/eriklindernoren/PyTorch-YOLOv3/issues/233
                 # 判断条件1.iou阈值
-                #        2.与target_box最大iou的pred_box的索引是否出现两次,如果出现两次则代表某一pred_box预测两次最大IOU,这不能算TP
+                #        2.与pred_box最大iou的target_box的索引是否已经出现,如果出现两次则代表某一target_box被预测两次最大IOU,这不能算TP
                 #        3.pred_box的class是否与target_box的class一致
-                if iou >= iou_threshold and box_index not in detected_boxes and pred_label == target_labels[box_index]:
+                if iou >= iou_threshold and target_index not in detected_boxes and pred_label == target_labels[box_index]:
                     true_positives[pred_i] = 1
-                    detected_boxes.append(box_index)
+                    detected_boxes.append(target_index)
 
         batch_metrics.append([true_positives, pred_scores.cpu(), class_index.cpu()])
     return batch_metrics

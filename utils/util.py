@@ -95,10 +95,10 @@ def NMS(prediction, conf_thres, nms_thres):
                 detections = detections[1:]
                 continue
             # 匹配同类的,其实这个条件在部分情况下省略会有更好的效果,即不区分是否在同一种类下的NMS
-            # label_match = detections[0, -1] == detections[:, -1]
+            label_match = detections[0, -1] == detections[:, -1]
 
             # 合并以上两个条件
-            # invalid = large_overlap & label_match
+            invalid = large_overlap & label_match
             # 注意这里这个变量名为什么叫weights,是因为代码作者(eriklindernoren)想要整合多个nms_thres大于阈值且预测属于同一类的pred_box
             # weights越大代表含有某一类物体的特征越多,同理越小代表越少,但是蚊子再小也是块肉对吧.
             # 我觉得作者应该是想让预测的结果更加精确些,希望尽可能的能把目标特征保留下来.整合特征吧
