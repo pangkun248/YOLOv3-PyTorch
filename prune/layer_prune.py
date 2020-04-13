@@ -1,11 +1,14 @@
-from utils.prune_tool import *
+from prune.prune_tool import parse_blocks_layer, write_cfg, gather_bn_weights, beta2next
 from model import YOLOv3
-from datasets import *
+import torch
+import numpy as np
 from test import evaluate
 from copy import deepcopy
 import time
 from terminaltables import AsciiTable
 
+
+# layer_prune 是一种对shortcut的层剪枝的方式,计算每个shortcut层前一层的bn中γ的均值,按比例取最小的几个shortcut层然后整个剪掉
 if __name__ == "__main__":
     map_name = 'kalete'
     model_name = 'yolov3'
@@ -16,7 +19,7 @@ if __name__ == "__main__":
         'iou_thres': 0.5,
         'nms_thres': 0.1,
         'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\' + model_name + '.cfg',
-        'weights': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep46-map82.09-loss0.14039.pt',
+        'weights': 'D:\py_pro\YOLOv3-PyTorch\weights\\' + map_name + '\\yolov3_ep43-map82.67-loss0.15187.pt',
         'train_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\\train.txt',
         'val_path': 'D:\py_pro\YOLOv3-PyTorch\data\\' + map_name + '\\val.txt',
         'prune_num': 16,    # YOLOv3标准网络中有23个res块,这里代表剪掉多少块
@@ -35,7 +38,7 @@ if __name__ == "__main__":
     )
     # 剪枝前模型参数总量
     before_parameters = sum([param.nelement() for param in model.parameters()])
-    print(f'稀疏化训练后剪枝前模型mAP:{before_AP.mean():.4f}')
+    print(f'稀疏化训练后模型mAP:{before_AP.mean():.4f}')
 
     CBL_idx, _, shortcut_idx = parse_blocks_layer(model.blocks)
 
@@ -82,7 +85,7 @@ if __name__ == "__main__":
                 batch_size=import_param['batch_size'],
             )
 
-        print(f'将那些需要剪枝的CBL中的bn层中的γ参数置为0之后的mAP是 {ori_AP.mean():.4f}')
+        print(f'将bn_γ参数置为0后,模型mAP为 {ori_AP.mean():.4f}')
 
     prune_and_eval(model, prune_shortcuts)
 
@@ -107,7 +110,7 @@ if __name__ == "__main__":
 
     # 虽然上面已经能看到将待裁剪bn的γ值置为0后的mAP,但bn层的γ和β都还没有处理
     # 现在将稀疏化训练后的模型中待剪枝层的bn中的β参数移植到后面的层.并返回移植后的模型
-    pruned_model = beta2next_layer(model, CBL_idx, CBL_idx, CBLidx2mask)
+    pruned_model = beta2next(model, CBL_idx, CBL_idx, CBLidx2mask)
 
     precision, recall, AP, f1, ap_class = evaluate(
         pruned_model,
@@ -118,7 +121,7 @@ if __name__ == "__main__":
         img_size=320,
         batch_size=import_param['batch_size'],
     )
-    print('剪枝之后的mAP', AP.mean())
+    print('剪枝层β值移植之后的mAP', round(AP.mean(),4))
 
     compact_blocks = deepcopy(model.blocks)
 
@@ -181,10 +184,10 @@ if __name__ == "__main__":
     print(AsciiTable(metric_table).table)
 
     # 生成剪枝后的cfg文件并保存模型
-    cfg_path = f'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\{map_name}_layer_pruned_{import_param["prune_num"]}_mAP_{after_AP}.cfg'
-    pruned_cfg_file = write_cfg(cfg_path, [model.net_info.copy()] + compact_blocks)
+    cfg_path = f'D:\py_pro\YOLOv3-PyTorch\yolo_cfg\\{map_name}_layer_{import_param["prune_num"]}_mAP_{after_AP}.cfg'
+    write_cfg(cfg_path, [model.net_info.copy()] + compact_blocks)
     print(f'剪枝后的配置文件已被保存: {cfg_path}')
 
-    weight_path = f'D:\py_pro\YOLOv3-PyTorch\weights\\{map_name}\layer_pruned_{import_param["prune_num"]}_mAP_{after_AP}.pt'
+    weight_path = f'D:\py_pro\YOLOv3-PyTorch\weights\\{map_name}\layer_{import_param["prune_num"]}_mAP_{after_AP}.pt'
     torch.save(compact_model.state_dict(), weight_path)
     print('剪枝后的权重文件已被保存:', weight_path)
