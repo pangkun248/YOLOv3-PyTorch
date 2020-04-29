@@ -3,36 +3,15 @@ from model import YOLOv3
 from torch.utils.data import DataLoader
 from datasets import *
 from prune.prune_tool import parse_blocks_normal,  parse_blocks_layer, parse_blocks_slim, updateBN
+from config import cfg
 from test import evaluate
 import visdom
 from terminaltables import AsciiTable
 
 if __name__ == "__main__":
-    map_name = 'kalete'
-    model_name = 'yolov3'
-    import_param = {
-        'epochs': 50,
-        'batch_size': 8,
-        'conf_thres': 0.5,  # nms时pred_box的obj_conf以及cls_conf阈值,目标置信度以及类别置信度小于此阈值的过滤掉
-        'iou_thres': 0.5,  # 计算mAP的时候,tp的条件之一的阈值 1.pred_box和所有target_box的最大iou 大于iou_thres 2.且类别一致 3.同一target_box不能被算作tp两次
-        'nms_thres': 0.5,  # nms时iou的阈值,与最大score的pred_boxIOU超过此值的pred_box一律过滤掉,
-        'cfg_path': 'yolo_cfg\\' + model_name + '.cfg',
-        'weights': 'weights\\' + map_name + '\\prune_0.80.pt',
-        'train_path': 'data\\' + map_name + '\\train.txt',
-        'val_path': 'data\\' + map_name + '\\val.txt',
-        'class_path': 'data\\' + map_name + '\\dnf_classes.txt',
-        'pretrained': False,     # 是否基于已有模型继续训练
-        'is_pruned': False,       # 是否对模型进行稀疏化训练
-        'pruned_id': 1,          # 剪枝方式 1为普通无shortcut剪枝 2为layer剪枝 3为slim剪枝
-        'sparse_rate':0.01,      # 稀疏因子,如果稀疏化训练出来的bn中γ值普遍偏大,则可以调大该值 理想γ值大部分应落在[0, 0.1]区间
-    }
-    for k, v in import_param.items():
-        print(k, ':', v)
-    with open(import_param['class_path'], 'r') as file:
-        class_list = [i.replace('\n', '') for i in file.readlines()]
-    model = YOLOv3(import_param['cfg_path']).cuda()
-    if import_param['pretrained']:
-        model.load_state_dict(torch.load(import_param['weights']))
+    model = YOLOv3(cfg.cfg_path).cuda()
+    if cfg.pretrained:
+        model.load_state_dict(torch.load(cfg.weights_path))
     else:
         # 随机初始化权重,会对模型进行高斯随机初始化
         model.apply(weights_init_normal)
@@ -41,19 +20,19 @@ if __name__ == "__main__":
         2 : parse_blocks_layer(model.blocks),   # 层剪枝
         3 : parse_blocks_slim(model.blocks),    # slim剪枝
     }
-    _, _, prune_idx = prune_set[import_param['pruned_id']]
+    _, _, prune_idx = prune_set[cfg.pruned_id]
 
     # 设置网络输入图片尺寸大小与学习率
-    reso = int(model.net_info["height"])
-    lr = float(model.net_info["learning_rate"])
+    reso = int(cfg.input_h)
+    lr = float(cfg.lr)
 
     assert reso % 32 == 0  # 判断如果不是32的整数倍就抛出异常
     assert reso > 32  # 判断如果网络输入图片尺寸小于32也抛出异常
 
-    train_dataset = ListDataset(import_param['train_path'], reso)
+    train_dataset = ListDataset(cfg.train_path, reso)
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=import_param['batch_size'],
+        batch_size=cfg.batch_size,
         shuffle=True,
         num_workers=2,
         collate_fn=train_dataset.collate_fn,
@@ -78,7 +57,7 @@ if __name__ == "__main__":
     mAP = 0
     # 创建visdom可视化端口
     vis = visdom.Visdom(env='YOLOv3')
-    for epoch in range(1, import_param['epochs']):
+    for epoch in range(1, cfg.epochs):
         # if epoch % 20 == 0:
         #     lr = 0.2*lr
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.0005)
@@ -88,8 +67,8 @@ if __name__ == "__main__":
             targets = targets.cuda()
             loss, outputs = model(imgs, targets)
             loss.backward()
-            if import_param['is_pruned']:
-                updateBN(model.module_list, import_param['sparse_rate'], prune_idx)
+            if cfg.is_pruned:
+                updateBN(model.module_list, cfg.sparse_rate, prune_idx)
             optimizer.step()
             optimizer.zero_grad()
 
@@ -116,7 +95,7 @@ if __name__ == "__main__":
                     # conf_noobj += batch_metric["conf_noobj"]
                 print("[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, precision: %.5f, recall_50: %.5f, recall_75: %.5f]" %
                       (epoch,
-                       import_param['epochs'],
+                       cfg.epochs,
                        batch_i,
                        len(train_dataloader),
                        loss.item(),
@@ -133,10 +112,10 @@ if __name__ == "__main__":
                 for batch_metric in batch_metrics:
                     conf_noobj += batch_metric["conf_noobj"]
                 print("[Epoch %d/%d, Batch %d/%d] [Total_loss: %f, conf_noobj: %.5f, 该batch无标注目标]" %
-                      (epoch, import_param['epochs'], batch_i, len(train_dataloader), loss.item(), conf_noobj / 3,)
+                      (epoch, cfg.epochs, batch_i, len(train_dataloader), loss.item(), conf_noobj / 3,)
                       )
         # 每epoch输出一次详细loss
-        log_str = "\n [Epoch %d/%d] " % (epoch, import_param['epochs'])
+        log_str = "\n [Epoch %d/%d] " % (epoch, cfg.epochs)
         log_str += " Total loss:" + str(loss.item()) + '\n'
         metric_table = [["Metrics", *["YOLO Layer " + str(i + 1) for i in range(len(model.yolo_layers))]]]
         for i, metric in enumerate(class_metrics):
@@ -155,12 +134,12 @@ if __name__ == "__main__":
         print("\n---- 评估模型 ----lr:" + str(lr))
         precision, recall, AP, f1, ap_class = evaluate(
             model,
-            path=import_param['val_path'],
-            iou_thres=import_param['iou_thres'],
-            conf_thres=import_param['conf_thres'],
-            nms_thres=import_param['nms_thres'],
+            path=cfg.val_path,
+            iou_thres=cfg.iou_thres,
+            conf_thres=cfg.conf_thres,
+            nms_thres=cfg.nms_thres,
             img_size=reso,
-            batch_size=import_param['batch_size'],
+            batch_size=cfg.batch_size,
         )
         # 可视化mAP输出
         vis.line(X=torch.tensor([epoch]), Y=torch.tensor([AP.mean()]), win='mAP',
@@ -169,13 +148,13 @@ if __name__ == "__main__":
         # 输出 class APs 和 mAP
         ap_table = [["Index", "Class name", "Precision", "Recall", "AP", "F1-score"]]
         for i, c in enumerate(ap_class):
-            ap_table += [[c, class_list[c], "%.3f" % precision[i], "%.3f" % recall[i], "%.3f" % AP[i], "%.3f" % f1[i]]]
+            ap_table += [[c, cfg.class_name[c], "%.3f" % precision[i], "%.3f" % recall[i], "%.3f" % AP[i], "%.3f" % f1[i]]]
         print(AsciiTable(ap_table).table)
         print(f"---- mAP {AP.mean()}")
         # 根据mAP的值保存最佳模型
         if AP.mean() > mAP:
             mAP = AP.mean()
             torch.save(model.state_dict(),
-                       'weights\\' + map_name + '\\' + model_name + '_ep' + str(epoch) + '-map%.2f' % (
+                       'weights\\' + cfg.map_name + '\\' + cfg.model_name + '_ep' + str(epoch) + '-map%.2f' % (
                                AP.mean() * 100) + '-loss%.5f' % loss.item() + '.pt')
     torch.cuda.empty_cache()

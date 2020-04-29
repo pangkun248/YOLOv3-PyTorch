@@ -10,41 +10,16 @@ import cv2
 
 
 if __name__ == "__main__":
-    map_name = 'kalete'
-    model_name = 'yolov3'
-    import_param = {
-        'batch_size': 1,
-        'conf_thres': 0.8,
-        'iou_thres': 0.5,
-        'nms_thres': 0.4,
-        'video_in': r"D:\BaiduNetdiskDownload\wenyi.avi",
-        'video_out': '_out.mp4',
-        # 'cfg_path': 'yolo_cfg\\' + model_name + '.cfg',
-        'cfg_path': 'D:\py_pro\YOLOv3-PyTorch\weights\kalete\layer_pruned_16.cfg',
-        'weights_path': 'weights\\' + map_name + '\\layer_pruned_16.pt',
-    }
-    for k, v in import_param.items():
-        print(k, ':', v)
-    os.makedirs("output", exist_ok=True)
-    # 在GPU上加载模型
-    model = YOLOv3(import_param['cfg_path']).cuda()
-    if import_param['weights_path']:
-        # 在模型上加载权重
-        # model.load_darknet_weights(import_param['weights_path'])
-        model.load_state_dict(torch.load(import_param['weights_path']))
-    else:
-        print('无检测模型')
-    # 非训练阶段需要使用eval()模式
+    model = YOLOv3(cfg.cfg_path).cuda()  # 在GPU上加载模型
+    model.load_state_dict(torch.load(cfg.weights_path))
     model.eval()
-    # 加载类名
-    classes = ["BoneMan", "Hatter", "FatMan", "LittleMan", "Cowboy", "Werewolf","Bena","Papjo","Kokoyi","GreenDwarf","Giselle","Bellett","StormRider","Gold","Door","Close",]
     # 为每个类名配置不同的颜色
-    hsv_tuples = [(x / len(classes), 1., 1.) for x in range(len(classes))]
+    hsv_tuples = [(x / len(cfg.class_name), 1., 1.) for x in range(len(cfg.class_name))]
     colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
     colors = list(map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)), colors))
 
     # 开始读取视频源或摄像头
-    vid = cv2.VideoCapture(import_param['video_in'])
+    vid = cv2.VideoCapture(cfg.video_in)
     video_FourCC = int(vid.get(cv2.CAP_PROP_FOURCC))
     video_fps = vid.get(cv2.CAP_PROP_FPS)
     video_size = (int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
@@ -58,11 +33,11 @@ if __name__ == "__main__":
             tensor_img = transforms.ToTensor()(PIL_img)
             img, _ = pad_to_square(tensor_img, 0)
             # Resize并增加一维,因为网络输入尺寸要求batch_size,channel,height,width
-            img = resize(img, (int(model.net_info['height']),int(model.net_info['height']))).cuda().unsqueeze(0)
+            img = resize(img, (cfg.input_h,cfg.input_w)).cuda().unsqueeze(0)
             start_time = time.time()
             with torch.no_grad():
                 detections = model(img)
-                detections = NMS(detections, import_param['conf_thres'], import_param['nms_thres'])[0]
+                detections = NMS(detections, cfg.conf_thres, cfg.nms_thres)[0]
             end_time = time.time()
             # FPS计算方式比较简单
             fps = 'FPS:%.2f' % (1/(end_time-start_time))
@@ -71,14 +46,14 @@ if __name__ == "__main__":
             draw = ImageDraw.Draw(PIL_img)
             if (detections is not None):
                 # 先将在320*320标准下的xyxy坐标转换成max(600,800)下的坐标 再将x向或y向坐标减一下就行
-                detections[:, :4] *= (max(h, w) / int(model.net_info['height']))
+                detections[:, :4] *= (max(h, w) / cfg.input_h)
                 if max(h - w, 0) == 0:
                     detections[:, 1:4:2] -= (w - h) / 2
                 else:
                     detections[:, 0:3:2] -= (h - w) / 2
                 for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
-                    print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
-                    label = '{} {:.2f}'.format(classes[int(cls_pred)], cls_conf.item())
+                    print("\t+ Label: %s, Conf: %.5f" % (cfg.class_name[int(cls_pred)], cls_conf.item()))
+                    label = '{} {:.2f}'.format(cfg.class_name[int(cls_pred)], cls_conf.item())
                     # 获取文字区域的宽高
                     label_w, label_h = draw.textsize(label, font)
                     # 画出物体框 顺便加粗一些边框

@@ -1,10 +1,11 @@
 import torch.nn as nn
 from utils.util import *
 import torch
+from config import cfg
 
 
 def create_modules(blocks):
-    # blocks[0] [net]层 相当于超参数,网络全局配置的相关参数
+    # blocks[0] [net]层 相当于超参数,网络全局配置的相关参数,但是在本份代码中没有使用cfg文件中net模块的参数
     net_info = blocks.pop(0)
     module_list = nn.ModuleList()
     # 因为图片就是三通道的,所以初始输入维数为3,
@@ -121,7 +122,7 @@ def create_modules(blocks):
             # 将当前mask对应的anchor赋值成当前yolo层的负责预测的anchors
             anchors = [anchors[i] for i in anchor_index]
             num_classes = int(block["classes"])
-            inp_dim = int(net_info["height"])
+            inp_dim = cfg.input_h
             # 将creat_model类中的YOLOLayer赋值给yolo_layer
             yolo_layer = YOLOLayer(anchors, num_classes, inp_dim)
             module.add_module("yolo", yolo_layer)
@@ -174,18 +175,18 @@ class YOLOLayer(nn.Module):
         # 我自己遇到的都是 飞机 汽车 大炮 人 狗...等等互斥的类别.所以在此进行了更改
         pred_cls = torch.softmax(prediction[..., 5:], dim=1)  # Cls pred.
         # 下面这些数据是和yolo层绑定在一起的,所以只要yolo层固定了这些数据也就固定了.不然每次都要临时创建需要额外耗费5ms左右
-        if grid_size != self.grid_size:
-            self.grid_size = grid_size
-            g = self.grid_size
-            # 图片从网络输入到YOLO层时缩小的倍数 标准YOLOv3有三个YOLO层,所以有三个stride 8 16 32
-            self.stride = self.inp_dim / self.grid_size
-            # 这里的x_offset与y_offset只是表示每个grid的左上角坐标,方便后面相加
-            self.x_offset = torch.arange(g).repeat(g, 1).reshape([1, 1, g, g]).type(FloatTensor)
-            self.y_offset = torch.arange(g).repeat(g, 1).t().reshape([1, 1, g, g]).type(FloatTensor)
-            # 由于最终的xywh都会在以stride为单位的featuremap上预测计算,所以这里anchors的尺寸也要跟着改变(缩小)
-            self.scaled_anchors = FloatTensor([(a_w / self.stride, a_h / self.stride) for a_w, a_h in self.anchors])
-            self.anchor_w = self.scaled_anchors[:, 0:1].reshape((1, self.num_anchors, 1, 1))
-            self.anchor_h = self.scaled_anchors[:, 1:2].reshape((1, self.num_anchors, 1, 1))
+        # if grid_size != self.grid_size:
+        self.grid_size = grid_size
+        g = self.grid_size
+        # 图片从网络输入到YOLO层时缩小的倍数 标准YOLOv3有三个YOLO层,所以有三个stride 8 16 32
+        self.stride = self.inp_dim / self.grid_size
+        # 这里的x_offset与y_offset只是表示每个grid的左上角坐标,方便后面相加
+        self.x_offset = torch.arange(g).repeat(g, 1).reshape([1, 1, g, g]).type(FloatTensor)
+        self.y_offset = torch.arange(g).repeat(g, 1).t().reshape([1, 1, g, g]).type(FloatTensor)
+        # 由于最终的xywh都会在以stride为单位的featuremap上预测计算,所以这里anchors的尺寸也要跟着改变(缩小)
+        self.scaled_anchors = FloatTensor([(a_w / self.stride, a_h / self.stride) for a_w, a_h in self.anchors])
+        self.anchor_w = self.scaled_anchors[:, 0:1].reshape((1, self.num_anchors, 1, 1))
+        self.anchor_h = self.scaled_anchors[:, 1:2].reshape((1, self.num_anchors, 1, 1))
 
         # 这里为什要乘以压缩(8,16,32)倍后的anchor而不是原anchor的wh,因为pred_boxes中的wh值也都是在压缩(8,16,32)倍的环境下预测出来的.
         # 主要是为了保持一致,虽然马上就又恢复到正常大小了 (下面cat内容)
@@ -222,7 +223,7 @@ class YOLOLayer(nn.Module):
             # 这里bool化的原因是方便下面进行切片取值
             obj_mask = obj_mask.bool()
             noobj_mask = noobj_mask.bool()
-            # 坐标损失
+            # 坐标损失,本份代码的loc损失只匹配和target_box的IOU值最大的那几个anchor,没有匹配所有特征点上最大IOU的anchor
             loss_x = self.mse_loss(x[obj_mask], tx[obj_mask])
             loss_y = self.mse_loss(y[obj_mask], ty[obj_mask])
             loss_w = self.mse_loss(w[obj_mask], tw[obj_mask])
