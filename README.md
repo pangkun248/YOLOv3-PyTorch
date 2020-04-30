@@ -50,13 +50,15 @@ win10 cuda10.1 cudnn7.6.1 python3.7 pytorch1.3 GPU:1660 CPU:i5-8400
 
 但是和每个任务场景及模型有很强的关联,也就说有些任务场景可以达到很高的剪枝率有些却比较低,模型也是同理.
 
-https://github.com/Lam1360/YOLOv3-model-pruning 中提到的对于YOLOv3剪枝70% 速度翻倍的情况我没有遇到.
+https://github.com/Lam1360/YOLOv3-model-pruning 中提到的对于YOLOv3剪枝70% 速度翻倍的情况我没有遇到.问题1
 
 emmm...我是复制了他提供的剪枝后的cfg文件以及权重文件然后测试模型forward时间.反而我的速度几乎没变,猜测和硬件平台以及运行环境有关.
 
+意思就是说如果你只是普通玩家的话那速度基本没变,但你要是RMB玩家的话那提升速度就很可观了
+
 不过这里还是提供一个大致的模型剪枝过程吧,以防以后用得上.
 
-拿YOLOv3来说.剪枝方式就是跳过shortcut中起始末尾层、YOLO层前一层、upsamle前一层、maxpool前一层
+拿YOLOv3来说.剪枝方式就是跳过shortcut中起始末尾层、YOLO层前一层、upsamle前一层、maxpool前一层。问题2
 
 以上conv这些层中的卷积不参与剪枝.至于为什么不参与剪枝,
 
@@ -66,7 +68,9 @@ emmm...我是复制了他提供的剪枝后的cfg文件以及权重文件然后�
 
 3.upsample与maxpool前一层,这两种情况目前没有想到不参与剪枝的原因.只是别人这么做了.
 
-目前来说就只有这一种剪枝方式,后续可能会更新其他方式的剪枝.
+目前来说,剪枝方式有无shortcut的普通剪枝,层剪枝.以及Slim论文中提到的剪枝方式,但是没有实现边训练边剪枝.
+
+问题1及问题2的相关回答见 https://github.com/tanluren/yolov3-channel-and-layer-pruning/issues/54
 
 ####剪枝方式:
 
