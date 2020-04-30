@@ -124,7 +124,6 @@ if __name__ == "__main__":
             formats["cls_acc"] = "%.2f%%"
             row_metrics = [formats[metric] % yolo.metrics.get(metric, 0) for yolo in model.yolo_layers]
             metric_table += [[metric, *row_metrics]]
-            # 这里原本是由TensorBoard的可视化输出的,但是我不太喜欢TensorFlow的东西.就把他它去掉了 感兴趣的可以去作者那里找一下
         log_str += AsciiTable(metric_table).table
         print(log_str)
         # 可视化 Loss输出 这里我使用的是Visdom的可视化 包括下面的mAP
