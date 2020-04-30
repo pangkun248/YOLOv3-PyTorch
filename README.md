@@ -6,8 +6,6 @@
 ### 代码环境:
 win10 cuda10.1 cudnn7.6.1 python3.7 pytorch1.3 GPU:1660 CPU:i5-8400
 
-数据文件和权重文件我把它放到百度云,需要的自取.[百度云](https://pan.baidu.com/s/1CG7zlJTAlDm-eImvQr0xTQ),提取码:fh3s
-
 ### 训练和测试
 测试方式:然后运行detect_img.py或者detect_video.py.py(视频or摄像头检测).
 测试mAP的话直接运行test.py即可
